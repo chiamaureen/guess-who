@@ -5,6 +5,7 @@ import { useAction } from "../hooks/useAction";
 import { roomService } from "../services/rooms";
 import { Feedback } from "../components/Feedback";
 import { QUESTIONS_PER_GAME } from "../types/game";
+import { MagneticButton } from "../components/MagneticButton";
 
 export function CreateRoomPage() {
   const [selected, setSelected] = useState<string[]>([]);
@@ -71,13 +72,12 @@ export function CreateRoomPage() {
               正式版將由伺服器隨機出題，不重複人物
             </span>
           </p>
-          <button
-            className="button button-primary"
+          <MagneticButton
+            icon="↗"
             disabled={action.loading || !selected.length}
           >
-            {action.loading ? "處理中…" : "預覽建立房間"}{" "}
-            <span aria-hidden="true">↗</span>
-          </button>
+            {action.loading ? "處理中…" : "預覽建立房間"}
+          </MagneticButton>
         </div>
         <Feedback error={action.error} message={action.message} />
       </form>

@@ -1,13 +1,24 @@
+import type { ReactNode } from 'react'
+import { useMagnetic } from '../hooks/useMagnetic'
+
 const faces = [
   { hair: '#282828', skin: '#f0bd8a', shirt: '#133eff', name: '捲髮人物', style: 'curly' },
   { hair: '#654131', skin: '#f5c7ab', shirt: '#ff3c02', name: '長髮人物', style: 'long' },
   { hair: '#eeeae3', skin: '#efbd97', shirt: '#282828', name: '白髮人物', style: 'wild' },
 ]
 
+function MagneticPortrait({ index, children }: { index: number; children: ReactNode }) {
+  const zoneRef = useMagnetic<HTMLDivElement>()
+
+  return <div className={`portrait-zone portrait-${index}`} ref={zoneRef}>
+    <div className="portrait" data-magnetic-target>{children}</div>
+  </div>
+}
+
 export function Portraits() {
   return <div className="portrait-scene" aria-label="三張等待你猜出身分的插畫人物卡">
     <span className="scene-caption">( a familiar face, a new conversation )</span>
-    {faces.map((face, index) => <div className={`portrait portrait-${index}`} key={face.name}>
+    {faces.map((face, index) => <MagneticPortrait index={index} key={face.name}>
       <div className="portrait-art">
         <svg viewBox="0 0 180 200" role="img" aria-label={face.name}>
           <path d="M20 205 Q22 145 90 145 Q158 145 160 205" fill={face.shirt} />
@@ -23,7 +34,7 @@ export function Portraits() {
         </svg>
       </div>
       <span className="portrait-question"><span>0{index + 1} / GUESS WHO</span><b>↗</b></span>
-    </div>)}
+    </MagneticPortrait>)}
     <span className="scene-sticker" aria-hidden="true">?</span>
   </div>
 }
