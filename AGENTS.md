@@ -14,6 +14,8 @@
 - 正式版主持人安全憑證與狀態須可跨重新整理恢復；玩家使用匿名 Session。
 - 答案不得放進揭曉前的玩家回應或 Realtime payload；前端隱藏不構成權限控制。
 - 正式版 Supabase RLS 與 Edge Functions 必須驗證權限；Service Role Key 等秘密只能在伺服器環境。
+- Phase 4 必須明確設計資料庫 GRANT／RLS 與 Edge Functions 授權，主持人操作由伺服器驗證安全 Host Token；Publishable Key 不代表主持人權限。
+- 伺服器是 Game State 的唯一權威來源；前端不可自行修改題目或進度，Realtime 不得把未揭曉的人物姓名／答案傳送給玩家。此處只記錄需求，不代表已實作。
 - 題庫來源 Wikidata / Wikimedia Commons，正式匯入需保留授權、作者及來源資訊。
 - 雲端服務優先免費方案，不使用常駐 Node.js server 或 Socket.IO。
 

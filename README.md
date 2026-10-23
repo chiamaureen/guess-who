@@ -4,6 +4,7 @@
 
 Phase 2 的範圍、實測結果、修正與後續準備事項見 [驗收報告](docs/phase2-acceptance.md)。
 Phase 3 的實際驗證結果與待處理事項見 [Supabase Setup Report](docs/phase3-supabase-setup.md)。
+Phase 3 最終驗收與 Phase 4 Readiness Gate 見 [Final Verification Report](docs/phase3-final-verification.md)。
 
 ## 本機啟動
 
@@ -147,6 +148,17 @@ Vite 設定 `base: '/guess-who/'`，React Router 採 HashRouter，網址如 `/gu
 首頁三張人物卡片也使用共用 `useMagnetic` Hook，整張卡片跟隨滑鼠並彈性回位。定位與原始傾斜放在外層，動畫只移動內層卡片，保留重疊順序及傾斜角度；同樣支援觸控與減少動態效果設定。
 
 ## Phase 4 與後續階段（尚未實作）
+
+### Phase 4 安全設計前提（規格，尚未實作）
+
+- 玩家在揭曉前不得取得人物姓名或答案，不可只靠 React UI 隱藏資料。
+- 資料存取必須同時設計明確的資料庫 GRANT、RLS 與 Edge Functions 權限驗證。
+- 主持人操作必須由伺服器驗證安全 Host Token，Publishable Key 不授予主持人權限。
+- 伺服器是 Game State 的唯一權威來源，前端不得自行決定或修改題目、進度。
+- Realtime 對玩家發送的 payload 不得包含未揭曉的人物姓名／答案。
+- 所有資料表、權限與 API 都待 Phase 4 另行授權後才實作；Auth Health 通過不代表這些設計已完成。
+
+### 後續工作
 
 - Supabase PostgreSQL schema / RLS、匿名 Session、安全主持人憑證與重新整理恢復。
 - Edge Functions 房間 API、15 題無重複抽題、主持人控制與 Realtime 同步。
