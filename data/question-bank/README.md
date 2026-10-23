@@ -1,6 +1,8 @@
 # Minimal Question Bank — Review Gate
 
-目前沒有可直接匯入的已審核題庫。此目錄不在 `src`／`public`，prepared 內容亦被 Git 忽略；不把題庫原始 Metadata 打包給玩家。
+**最新狀態：** 已逐頁與逐張檢查原候選、保守排除拜登／柯林頓，再補林肯／格蘭特，備妥 15 位的本機匯入批次。詳見 [Phase 8 Review](../../docs/phase8-minimum-bank-review.md)；雲端匯入仍等待批准。以下保留準備工具說明，不代表可略過來源與視覺審核。
+
+原候選檔維持未審核狀態；正式待審批次在 ignored `prepared/review-20261023/reviewed-bank.json`，圖片／SQL 不進 `src`／`public` 或 dist。Vite 開發伺服器也拒絕直接存取此題庫目錄，不把原始 Metadata 交給玩家。
 
 ```sh
 node scripts/prepare-question-bank.mjs
@@ -21,5 +23,15 @@ node scripts/prepare-question-import.mjs data/question-bank/prepared/candidates-
 工具拒絕未審核資料、重複 Wikidata、缺來源／授權／確認、目錄外圖片、SHA-256 不符或違反正式 PNG CHECK 的素材；僅產生 owner-only `reviewed-import.sql`，**不連 Cloud、不執行 SQL**。匯入是單一交易且純 INSERT；相同人物若已存在會拒絕，不用 UPSERT 覆蓋舊題庫或審核資料。仍須人工審 SQL 並另取得遠端題庫寫入授權。
 
 本機 fixtures 及合成臉不能混入正式題庫。只準備候選或 SQL 不代表雲端已可玩。
+
+## 本次已完成的審核流程
+
+1. `source-review.json` 記錄每張來源的具體依據／作者／排除理由，不以 Metadata 自動核准。
+2. `scripts/prepare-reviewed-images.mjs` 重新取得來源 revision／SHA-1，下載與核對原圖、轉成中性 PNG 並產生聯絡表；此步驟仍 approved=false。
+3. 實際逐張確認原圖與最終縮圖、正確人物及無姓名水印，才由 `finalize-question-review.mjs` 的明確確認與具名 reviewer 產生 reviewed-bank.json。審核者照實為 Codex，不冒稱人類／律師簽署。
+4. `prepare-question-import.mjs` 產生單交易 INSERT、批次 receipt 與 READ ONLY verify-import.sql，全部 owner-only／ignored。它不連 Cloud，重複 Wikidata 會整批拒絕，不會覆寫既有題庫。
+5. `check-reviewed-bank.mjs` 只在隔離 PGlite 驗證本批真實照片、15 題流程／Player 隔離／C 模式；不是 Cloud 成功證據。
+
+本次預計新增 15 celebrities＋15 關聯＋15 私有圖片，既有 categories 不增不改。SQL hash 與批准範圍見驗收報告；原圖 Public Domain 聲明可能具地域範圍，改為代言／廣告或其他用途需重審，不將工程審核當成全球法律保證。
 
 官方來源：[Imageinfo](https://www.mediawiki.org/wiki/API:Imageinfo)、[Commons machine-readable data](https://commons.wikimedia.org/wiki/Commons:Machine-readable_data/en)。

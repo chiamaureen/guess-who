@@ -57,4 +57,8 @@
 - 每次完成工作執行可行的 `npm test`、`npm run build`，並回報結果與未完成項目。
 - `npm run test:game` 套用正式 migrations，以獨立 PGlite 與原創合成 PNG 測試；Phase 4／5 snapshot 保持各階段範圍。`game-concurrency.mjs` 用私有 Unix socket PG／20 連線，`check-game-browser.mjs` 用攔截至本機的 Chrome 驗證；不得將本機 fixtures 或 PASS 當成雲端 15 題驗收。
 - Phase 8 僅準備候選與離線匯入工具：`prepare-question-bank.mjs` 讀公開 Wikidata／Commons Metadata，一律 pending／approved=false；`prepare-question-import.mjs` 拒絕未審核資料，只產生本機 SQL，不連 Cloud。prepared 目錄須忽略，不進 public／src。人工 subject／rights／image、署名時機與可解碼 PNG 審核不可省略，Metadata Public domain 不代表已完成審核。
+- Phase 8 已另完成逐頁來源與視覺工程審核：原候選排除兩張 personality 警示、補林肯／格蘭特，ignored reviewed-bank.json 共 15 位，預計純 INSERT 45 列。見 `docs/phase8-minimum-bank-review.md`；Cloud 仍為 0，未批准不得匯入／寫 QA 資料。不得將 Codex 審核冒稱人類／律師或全球權利保證。
+- 使用者已批准原 45 列 PostgreSQL 私圖批次；本次因執行者漏加 CLI `--linked` 而在 SQL 前遭拒，唯讀確認 Cloud 仍為 0 且舊資料筆數不變。依錯誤即停止要求，未重試寫入，等待下一次明確指示；詳見 `docs/phase8-cloud-import-report.md`。`db query --project-ref` 必須同時帶 `--linked`。新增 `supabase/tests/verify_question_bank_access.sql` 僅唯讀，實際切換 anon／authenticated 驗證直接圖片 SELECT 被拒，不修改權限。
+- 圖片處理只限已核對來源：原檔 SHA-1、來源 revision 與 PNG SHA-256 保存，Sharp 作本機解碼與縮放，再以最小 RGB PNG encoder 去 Metadata；中性檔名、每張至多 128 KiB，不改前端設計。Vite server.fs.deny 封鎖題庫目錄，dist 不含原圖／審核 Metadata／SQL。
+- `source-review.json`、`prepare-reviewed-images.mjs` 預設不自動核准圖片；只有逐張檢視後的明確確認可 finalize。匯入 SQL 先驗 active category 與重複 Wikidata，與既有 UNIQUE 一同拒絕重跑，無 UPSERT／UPDATE／DELETE。先批准確切 SQL SHA-256 再執行，三個 Migration 均禁止改寫。
 - `.github/workflows/pages.yml` 只有 workflow_dispatch，避免 Push 意外發布；使用最小權限、固定 Action commit、Actions 公開 vars。尚未設定 GitHub 遠端 vars／Pages，也未 Commit／Push／執行 Workflow；所有後續發布與題庫寫入需再取得明確批准，免費 Pages 須確認 Repository 可用資格，不自動改公開或付費方案。

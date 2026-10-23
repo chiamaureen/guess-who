@@ -5,6 +5,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { createGameFixture, fixturePng } from '../supabase/tests/game-fixture.mjs'
+import { gameVerificationSql } from './make-game-verification.mjs'
 
 const reviewedFixture = () => Array.from({ length: 15 }, (_, index) => ({
   wikidataId: `Q${90000000 + index}`, nameZh: `LOCAL TEST ONLY ${index}`, license: 'CC0-1.0', restrictions: '',
@@ -35,6 +36,14 @@ test('complete synthetic reviewed metadata passes structural validation without 
   assert.equal(validateReviewedEntries(reviewedFixture()).length,15)
 })
 
+test('cloud game verifier is read-only and requires an exact room code, not SQL input', () => {
+  assert.throws(()=>gameVerificationSql("ABC123';DELETE"))
+  const sql=gameVerificationSql('ABC123')
+  assert.ok(sql.startsWith('BEGIN READ ONLY;'))
+  assert.ok(!/INSERT INTO|DELETE FROM|UPDATE public|TRUNCATE/.test(sql))
+  assert.ok(sql.includes("room_code='ABC123'"))
+})
+
 test('offline import generates a single transaction; actual local SQL inserts15 approved distinct people and refuses overwrite', async () => {
   const directory = await mkdtemp('/tmp/gw-bank-test-')
   const png = fixturePng()
@@ -48,7 +57,13 @@ test('offline import generates a single transaction; actual local SQL inserts15 
   const fixture = await createGameFixture()
   try {
     await fixture.database.exec(await readFile(generated.output, 'utf8'))
+    await fixture.database.exec(await readFile(join(directory, 'verify-import.sql'), 'utf8'))
     assert.equal((await fixture.database.query('SELECT count(DISTINCT celebrity_id)::int AS total FROM public.game_image_assets WHERE is_approved')).rows[0].total,15)
     await assert.rejects(prepareQuestionImport(manifest), error => error.code === 'EEXIST')
+    await assert.rejects(fixture.database.exec(await readFile(generated.output, 'utf8')), /Duplicate bank subjects/)
+    await fixture.database.exec('ROLLBACK')
+    await fixture.database.exec('UPDATE public.celebrities SET is_approved=false')
+    await assert.rejects(fixture.database.exec(await readFile(join(directory,'verify-import.sql'),'utf8')), /verification failed/)
+    await fixture.database.exec('ROLLBACK')
   } finally { await fixture.close() }
 })

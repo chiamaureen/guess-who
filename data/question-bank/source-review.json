@@ -1,0 +1,24 @@
+{
+  "reviewDate": "2026-10-23",
+  "reviewer": "Codex source review; engineering review, not a worldwide legal warranty",
+  "categoryId": "10000000-0000-4000-8000-000000000004",
+  "entries": [
+    { "wikidataId": "Q76", "nameZh": "巴拉克·歐巴馬", "filename": "President Barack Obama.jpg", "author": "Pete Souza / Official White House Photo", "decision": "accepted", "basis": "PD-USGov-POTUS", "notes": "官方白宮職務攝影；保留來源與作者，非背書用途。" },
+    { "wikidataId": "Q6279", "nameZh": "喬·拜登", "filename": "Joe Biden presidential portrait.jpg", "decision": "excluded", "basis": "personality warning", "notes": "雖聲明政府作品 PD，但另列肖像權警示；保守排除，未清空 restrictions。" },
+    { "wikidataId": "Q22686", "nameZh": "唐納·川普", "filename": "Official Presidential Portrait of President Donald J. Trump (2025) (3x4).jpg", "author": "Daniel Torok / White House", "decision": "accepted", "basis": "PD-USGov-POTUS", "notes": "官方白宮照片；頁面明列職務作品公有領域及來源。" },
+    { "wikidataId": "Q207", "nameZh": "喬治·沃克·布希", "filename": "George-W-Bush.jpeg", "author": "Eric Draper / White House", "decision": "accepted", "basis": "PD-USGov-POTUS", "notes": "白宮職務攝影；另有 DoD 來源識別，非只依收藏館名稱推定授權。" },
+    { "wikidataId": "Q1124", "nameZh": "比爾·柯林頓", "filename": "Bill Clinton.jpg", "decision": "excluded", "basis": "personality warning", "notes": "公有領域聲明以外仍有肖像權警示，最小題庫不採用。" },
+    { "wikidataId": "Q23505", "nameZh": "喬治·赫伯特·沃克·布希", "filename": "George H. W. Bush presidential portrait (cropped).jpg", "author": "David Valdez / White House", "decision": "accepted", "basis": "PD-USGov / Public Domain Mark", "notes": "頁面明列政府職務作品，來源為原官方肖像的裁切。" },
+    { "wikidataId": "Q9960", "nameZh": "隆納·雷根", "filename": "Ronald Reagan 1981 presidential portrait.jpg", "author": "Michael Evans / White House", "decision": "accepted", "basis": "PD-USGov-POTUS", "notes": "只縮放另存衍生檔，不裁切或覆寫標記為 Do not crop 的 Commons 原件。" },
+    { "wikidataId": "Q35648", "nameZh": "威廉·霍華德·塔夫脫", "filename": "Cabinet card of William Howard Taft by Pach Brothers - Cropped to image.jpg", "author": "Pach Brothers; restoration by Adam Cuerden", "decision": "accepted", "basis": "PD-US-expired; restoration permission", "notes": "1908 年已出版原作；修復者 Creator 頁另明示不可撤銷使用許可、署名為非強制請求，仍保留署名。", "additionalEvidence": ["https://commons.wikimedia.org/wiki/Creator:Adam_Cuerden"] },
+    { "wikidataId": "Q9582", "nameZh": "傑拉德·福特", "filename": "Gerald Ford presidential portrait (cropped).jpg", "author": "David Hume Kennerly / White House; restoration credited to Wow", "decision": "accepted", "basis": "PD-USGov / Public Domain Mark", "notes": "官方肖像與 NARA 530680 原件相連，頁面聲明政府作品 PD；保留修復來源。" },
+    { "wikidataId": "Q9588", "nameZh": "理查·尼克森", "filename": "Richard Nixon presidential portrait.jpg", "author": "U.S. Army Audiovisual Center / Department of Defense; restoration credited to Wow", "decision": "accepted", "basis": "PD-USGov / Public Domain Mark", "notes": "對應 NARA 530679，依具體政府作品聲明，不以 NARA 收藏即等同 PD。" },
+    { "wikidataId": "Q9640", "nameZh": "林登·詹森", "filename": "Lyndon B. Johnson, photo portrait, leaning on chair, color cropped.jpg", "author": "Arnold Newman", "decision": "accepted", "basis": "PD-USGov-POTUS declaration on file page", "notes": "Commons 指向 LBJ Library 並明列 PD-USGov-POTUS；署名仍依實際攝影者，不杜撰作者。" },
+    { "wikidataId": "Q9696", "nameZh": "約翰·甘迺迪", "filename": "John F. Kennedy, White House color photo portrait.jpg", "author": "Cecil W. Stoughton / White House", "decision": "accepted", "basis": "PD-USGov-POTUS", "notes": "讀取 Licensing 區的職務作品聲明，不把館藏來源標籤當成授權。" },
+    { "wikidataId": "Q9916", "nameZh": "德懷特·艾森豪", "filename": "Dwight D. Eisenhower, official photo portrait, May 29, 1959.jpg", "author": "White House / Eisenhower Presidential Library", "decision": "accepted", "basis": "PD-USGov-POTUS", "notes": "作者僅能確認到機構，保留原機構作者，不猜測個人姓名。" },
+    { "wikidataId": "Q11613", "nameZh": "哈利·杜魯門", "filename": "TRUMAN 58-766-06 (cropped).jpg", "author": "Harry S. Truman Library / NARA (credited institution; individual photographer unspecified)", "decision": "accepted", "basis": "PD-US-no-renewal declaration", "notes": "依檔案具體的未續展聲明，而不是假設收藏機構擁有全部作品權利；此聲明具美國地域範圍，非全球法律保證。" },
+    { "wikidataId": "Q12325", "nameZh": "詹姆斯·布坎南", "filename": "James Buchanan (cropped).jpg", "author": "Mathew Brady", "decision": "accepted", "basis": "PD-old / rights expired", "notes": "19 世紀原作、作者 1896 年逝世；檔案含權利屆滿聲明及 LOC ppmsc.00051。" },
+    { "wikidataId": "Q91", "nameZh": "亞伯拉罕·林肯", "filename": "Abraham Lincoln O-77 matte collodion print.jpg", "author": "Alexander Gardner; print associated with Moses Parker Rice", "decision": "accepted", "basis": "PD-scan / PD-old-100-expired / Public Domain Mark", "notes": "補充人選；1863 年攝影，頁面明列機械掃描及原作權利屆滿。" },
+    { "wikidataId": "Q34836", "nameZh": "尤利西斯·格蘭特", "filename": "Ulysses S. Grant 1870-1880.jpg", "author": "Mathew Brady / Brady-Handy collection, Library of Congress", "decision": "accepted", "basis": "PD-Brady-Handy", "notes": "補充人選；19 世紀攝影，頁面引用 LOC 收藏的無已知版權限制與期限依據。" }
+  ]
+}
