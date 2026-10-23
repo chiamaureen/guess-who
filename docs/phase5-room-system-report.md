@@ -1,5 +1,7 @@
 # Guess Who — Phase 5 Room System Report
 
+**最新狀態：Phase 5 DONE。** 使用者限定部署授權已執行，唯一 Migration、RPC／RLS、兩項設定、room-system v1 與 11 組真實 Cloud 多人驗收全部通過；129 項本機測試及 Build 再次通過。最新證據見 [Cloud Deployment Report](phase5-cloud-deployment-report.md)，下一階段僅準備 [Game Engine Plan](phase6-game-engine-preparation.md)。以下保留初次本機驗收歷史，原 BLOCKED／未部署描述不代表目前狀態。
+
 驗收日期：2026-10-23（Asia/Taipei）  
 範圍：Phase 5 剩餘本機驗收、必要修正、安全檢查與部署提案。  
 目標 Project：既有 `fgvajdnzrnptdjurhjfo`；不得新增付費資源。

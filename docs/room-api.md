@@ -1,6 +1,6 @@
 # Room System API Contract
 
-狀態：本機實作完成，**尚未部署 Cloud**。單一 Function `room-system`，全部 action 使用 HTTPS POST 與 JSON；沒有 GET 寫入端點或公開管理 RPC。
+狀態：**Phase 5 Cloud 部署與真實多人驗收完成**。單一 Function `room-system` v1，全部 action 使用 HTTPS POST 與 JSON；沒有 GET 寫入端點或公開管理 RPC。實際證據見 [Cloud Report](phase5-cloud-deployment-report.md)。
 
 ## Transport
 

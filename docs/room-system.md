@@ -1,6 +1,6 @@
 # Guess Who — Room System
 
-Phase 5 本機實作與驗收文件。**Cloud 部署、Secrets 設定及真實雲端房間整合仍待使用者批准，不代表 Phase 5 已完整完成。** 隨機出題、答案、計分、歷史重置及 Realtime 不在本階段。
+**Phase 5 DONE：** 已經使用者明確批准，完成 Cloud Migration、Secrets、room-system v1 與真實多人驗收，見 [Cloud Deployment Report](phase5-cloud-deployment-report.md)。隨機出題、答案、計分、歷史重置及 Realtime 不在本階段；Phase 6 目前只有準備文件。
 
 ## 架構
 
@@ -127,9 +127,9 @@ Identity key 只在 DB 以 credential hash 找到真實 Host ID，或匹配房�
 
 官方依據：[Edge Functions auth](https://supabase.com/docs/guides/functions/auth)、[Function configuration](https://supabase.com/docs/guides/functions/function-configuration)、[API keys](https://supabase.com/docs/guides/getting-started/api-keys)、[CORS](https://supabase.com/docs/guides/functions/cors)。本專案以明確自訂授權實作，不把關閉 JWT 驗證當成完成安全控制。
 
-## 8. 待審 Database 草案
+## 8. 已部署 Database 增量
 
-`supabase/migration-drafts/20261023093000_room_system.sql` **尚未移入正式 migrations，也未部署**：
+`supabase/migrations/20261023093000_room_system.sql` 已經使用者批准套用至既有 ref，與已審 H-01 digest 一致；從現在起禁止修改，只能以另行審核的增量變更：
 
 - 新增私有 `room_api_rate_limits` 表與索引：ENABLE／FORCE RLS、瀏覽器零權限、service_role 必要 DML。
 - 新增 `room_system_action`、`room_system_lobby`、`room_system_rate_limit` 三個 SECURITY INVOKER／空 search_path 函式；明確 REVOKE PUBLIC／anon／authenticated，只授 service_role EXECUTE。
@@ -150,7 +150,7 @@ Identity key 只在 DB 以 credential hash 找到真實 Host ID，或匹配房�
 
 簽章 key 輪替會影響尚未確認的 bootstrap／join 重試；既有 Host／Player 仍以 DB Hash 驗證，所以**換簽章 key 不會自動登出全部既有 Session**。需保護及備份 key、安排輪替窗口；撤銷既有身分用明確的撤銷流程。
 
-完整待批准指令與 Cloud 驗收計畫見 [Phase 5 Report](phase5-room-system-report.md)。本階段不得因文件列出指令就直接執行。
+已執行指令、僅列名稱的 Secrets 結果與真實 Cloud 證據見 [Cloud Deployment Report](phase5-cloud-deployment-report.md)。後續不得因文件列出指令就重複執行、輪替 Key 或新增 Cloud 測試資料。
 
 ## 10. 本機驗證
 
@@ -181,6 +181,10 @@ PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs node scripts/check-room
 若專案環境已安裝 `playwright` 可省略 `PLAYWRIGHT_MODULE`。script 自行啟閉隔離後端，將 Supabase 請求攔截轉送本機；缺工具為 BLOCKED，失敗為 FAIL。沒有真實 Cloud 房間資料寫入。結果與截圖預設 `/tmp/guess-who-phase5-qa/`。
 
 RWD suite 在密集頁面刷新中等待真實 60 秒來源窗口，因所有測試 context 都經同一 localhost socket；不以偽造 forwarding headers 區分玩家、不清除限流資料或提高正式門檻。單獨的 Test F 與 native PG 檢查負責驗證超量並行確實被拒絕。
+
+## 真實 Cloud 驗收工具
+
+`scripts/check-room-cloud.mjs` 與本機工具分開：需要已部署後端、允許的 127.0.0.1:5173 前端，以及明確的測試寫入授權與 `--allow-test-writes --project-ref fgvajdnzrnptdjurhjfo`。沒有 fixture 或 Mock，會建立實際房間／身分；預設 npm test 不會執行它，缺少明確參數直接 BLOCKED。測試只透過正常 API 操作本次新建資料；失敗立即停止、不自動清理或修復。憑證備份只存 Repository 外 private 檔，不進報告。
 
 ## 11. 後續邊界
 

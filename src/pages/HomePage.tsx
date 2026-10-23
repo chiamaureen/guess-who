@@ -17,6 +17,6 @@ export function HomePage() {
       ['02', '看一張臉，猜一個名字', '每場 15 題，大家看照片、直接說出答案，讓主持人來判斷！', '☺'],
       ['03', '揭曉答案，收集笑聲', '主持人揭曉正解，再前往下一題。不比積分，只比誰笑得開心。', '✷'],
     ].map(([number, title, text, icon]) => <article className="step" key={number}><div className="step-top"><span>STEP {number}</span><span className="step-icon" aria-hidden="true">{icon}</span></div><h3>{title}</h3><p>{text}</p></article>)}</div></section>
-    <div className="preview-banner"><span>✳</span><p><strong>先集合，派對即將開始。</strong>房間與等待室介面已就緒；需完成後端部署才能連線，正式遊戲尚未開放。</p><Link to="/host">探索分類 →</Link></div>
+    <div className="preview-banner"><span>✳</span><p><strong>先集合，派對即將開始。</strong>已可建立與加入雲端房間，等待朋友入座；正式遊戲尚未開放。</p><Link to="/host">探索分類 →</Link></div>
   </>
 }

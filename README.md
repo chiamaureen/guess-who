@@ -27,7 +27,7 @@
 
 前端負責畫面與操作；伺服器負責遊戲狀態、隨機出題與主持人權限。玩家在揭曉前不能取得正確姓名，未來透過資料隔離、RLS 與伺服器授權保護答案。
 
-**目前進度：** Phase 4 資料庫已部署；Phase 5 房間 API、匿名身分與等待室完成本機實作及驗證，雲端部署與整合驗收待批准。正式遊戲引擎與 Realtime 尚未實作，目前不能視為可完整遊玩的雲端遊戲。
+**目前進度：** Phase 5 已完成 Supabase 雲端部署與真實多人驗收，可建立／加入房間、恢復匿名身分及使用等待室。Phase 6 遊戲引擎已開始設計準備；正式出題、Realtime 與 GitHub Pages 發布尚未完成，目前不是可完整遊玩的遊戲。
 
 ## 專案結構
 
@@ -54,7 +54,7 @@ npm install
 npm run dev
 ```
 
-開啟 Vite 顯示的 `/guess-who/` 網址。分類從 Supabase 讀取；建立／加入房間需要先完成經批准的 Phase 5 後端部署，未部署時會顯示錯誤，不會假裝成功。
+開啟 Vite 顯示的 `/guess-who/` 網址。分類與房間服務使用已部署的 Supabase；本機 origin 必須列入後端 allowlist，連線失敗會顯示錯誤，不會假裝成功。
 
 使用分類與房間服務前，依 `.env.example` 在 `.env.local` 填入 Project URL 與 Publishable Key；不要放入私密金鑰或密碼。
 
@@ -66,4 +66,4 @@ npm run dev
 - `npm run check:supabase`：驗證 SDK 初始化與雲端 Auth API 連線。
 - `npm run check:db`：重播隔離的本機 Schema，與已連結雲端結構進行唯讀比對。
 
-開發規範見 [AGENTS.md](AGENTS.md)，架構與 ERD 見 [Database Schema](docs/database-schema.md)，房間生命週期見 [Room System](docs/room-system.md)，本機測試結果與待審部署計畫見 [Phase 5 Report](docs/phase5-room-system-report.md)。
+開發規範見 [AGENTS.md](AGENTS.md)，架構與 ERD 見 [Database Schema](docs/database-schema.md)，房間生命週期見 [Room System](docs/room-system.md)，最新結果見 [Phase 5 Cloud Report](docs/phase5-cloud-deployment-report.md)，下一階段見 [Phase 6 Preparation](docs/phase6-game-engine-preparation.md)。

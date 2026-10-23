@@ -212,7 +212,7 @@ PK／UNIQUE 自帶索引；另建立人物分類反查、已審核人物 partial
 3. 瀏覽器可將長期 Host 憑證與房間／玩家恢復資料保存於 IndexedDB 等本機持久化儲存，重新整理後透過 API 驗證恢復；不放在 URL、邀請連結、analytics 或日誌。
 4. 純 GitHub Pages 前端的 JS 可讀持久化憑證仍有 XSS／共用裝置風險；本機加密而金鑰同樣可讀不能解決 XSS。需限制第三方 script、檢查依賴、規劃 CSP 與登出／清除方式。跨站 Supabase cookie 不能假設可靠；若採 HttpOnly 同源 cookie，需另外評估同源受信任入口，不宣稱目前已有。
 5. 同裝置保留憑證時重用同一 Host ID；清除儲存或換裝置可能無法恢復，不能靠暱稱、房間代碼或公開 ID 找回控制權。不提供不安全的自動帳號復原，也不因此重置伺服器舊歷史；新匿名身分有自己的歷史。
-6. 私密後端金鑰只放 Edge Functions secrets，絕不放 `VITE_`。以上為 Phase 4 設計；Phase 5 已完成身分、Token 與持久化的本機實作，雲端整合仍待批准，見本文末節。
+6. 私密後端金鑰只放 Edge Functions secrets，絕不放 `VITE_`。以上為 Phase 4 設計；Phase 5 的身分、Token 與持久化已完成真實 Cloud 驗收，見本文末節。
 
 ## 6. 交易與併發策略（Phase 6 實作）
 
@@ -282,9 +282,9 @@ Cloud 另有不在應用 Migration 內的 `public.rls_auto_enable()`／`ensure_r
 
 最新結果、非阻斷警告、可選的收斂授權草案與 Phase 5 Gate 見 [Final Verification Report](phase4-final-verification.md)。
 
-## 9. Phase 5 Room System 增量草案（尚未部署）
+## 9. Phase 5 Room System 增量 Migration（已部署）
 
-`supabase/migration-drafts/20261023093000_room_system.sql` 尚在待審目錄，不會由 CLI 自動套用。既有 `20261023060000_create_guess_who_schema.sql` 保持原樣；上述九表與 Cloud 驗收紀錄屬於 Phase 4，不代表下列草案已部署。
+經使用者限定範圍批准，`supabase/migrations/20261023093000_room_system.sql` 已正式部署至 fgvajdnzrnptdjurhjfo，與 H-01 已審 digest 相同；既有 Phase 4 檔保持原樣，兩個檔案現在均不可改寫。Cloud PostgreSQL 17.11 的 history／十表／59 欄位／65 constraints／33 indexes／210 權限與本機重播零差異。
 
 | 新物件 | 用途與權限 |
 | --- | --- |
@@ -297,4 +297,4 @@ Cloud 另有不在應用 Migration 內的 `public.rls_auto_enable()`／`ensure_r
 
 本機以原九表加草案驗證十表權限；Phase 4 的 `test:db` 保留已部署 baseline，Phase 5 的 `test:rooms` 驗證合併後結構與交易。沒有修改題庫、room_questions、host_question_history 或實作遊戲引擎。
 
-只有使用者批准後才將草案移入正式 migrations、重新測試並 dry-run；不得僅因本機測試通過就部署。詳細 API／生命週期見 [Room System](room-system.md)，待批准指令、Secrets 與 Cloud 驗收見 [Phase 5 Report](phase5-room-system-report.md)。
+實際部署、唯讀權限驗證、真實 API／多人結果與留存 QA 資料見 [Phase 5 Cloud Report](phase5-cloud-deployment-report.md)。後續僅新增經批准的增量，不重跑本次部署或擅自清理測試資料；詳細生命週期見 [Room System](room-system.md)。

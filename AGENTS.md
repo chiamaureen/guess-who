@@ -21,10 +21,11 @@
 - 雲端服務優先免費方案，不使用常駐 Node.js server 或 Socket.IO。
 
 ## 工作規範
-- 目前授權 Phase 5 Room System 本機開發與驗收：匿名 Host、建立／加入、等待室、Session 恢復／離開／關閉與文件；保留既有視覺／RWD，不重複開發已完成的功能。
-- 尚未授權 Cloud 部署、修改遠端資料庫或 Secrets、Cloud 測試資料寫入、Commit／Push；Phase 6 抽題／揭曉／歷史重置、Phase 7 Realtime、Phase 8 題庫及 Phase 9 正式部署均不在本階段。
+- Phase 5 Room System 已完成本機與 Cloud 驗收：匿名 Host、建立／加入、等待室、Session 恢復／離開／關閉；保留既有視覺／RWD，不重複開發已完成的功能。
+- 使用者已明確批准並完成本次限定 Cloud 部署：ref fgvajdnzrnptdjurhjfo、唯一 Phase 5 Migration、兩個自訂 Secrets、room-system v1 與可辨識 QA 新資料。這不是後續變更的永久授權；新 Cloud 寫入／部署需另批准，仍不 Commit／Push 或發布 GitHub Pages。
+- 依要求已準備 `docs/phase6-game-engine-preparation.md`；目前只有 Phase 6 設計／測試清單，不代表抽題、揭曉或重置已實作。Phase 7 Realtime、Phase 8 題庫及 Phase 9 正式發布尚未開始。
 - 實際 `supabase db push` 必須取得使用者明確確認；不得以任務授權或 sandbox 指令核准代替部署確認。部署前檢查目標 Project、既有資料、Migration history、SQL 與權限；已部署 Migration 不可修改，只能新增增量 Migration。
-- `20261023060000_create_guess_who_schema.sql` 已於 2026-10-23 經使用者確認部署至既有 Cloud，禁止改寫；七分類與九表 RLS／GRANT 已驗證，不代表 Phase 5／6 功能已實作或已授權繼續開發。
+- `20261023060000_create_guess_who_schema.sql` 與 `20261023093000_room_system.sql` 均已於 2026-10-23 經使用者確認部署，禁止改寫；後者 digest 為 d4917bd4d103b537a575e87d78e100dda4bf71b0b3865525b3b26954f76ad10f。十表／三 RPC／RLS／GRANT 已驗證，不代表 Phase 6 引擎已實作。
 - 不執行 `supabase start`、`supabase db reset`、`supabase db pull`、破壞性清除、強制 Migration repair 或自行刪除既有資料；不啟用付費資源，不自動 Commit／Push。
 - Schema 使用 `celebrities` 同時容納真人與虛構人物；七個分類只 seed 分類，不含正式人物或圖片。測試 fixtures 僅供隔離的 PGlite，不得部署到 Cloud。
 - 所有應用表 ENABLE／FORCE RLS。瀏覽器角色只能 SELECT 啟用分類；其他表預設拒絕，不以 `auth.uid()` 當匿名主持人身分。service_role 只有明確的資料操作權限，Edge Functions 仍須先驗證匿名憑證與房間控制權。
@@ -40,12 +41,13 @@
 - `.env.local`、CLI `.temp`／`.branches` 與憑證必須忽略；CLI 登入和密碼由使用者在自己的互動終端機處理，不寫入命令參數或 Repository。
 - `npm run check:supabase` 只驗證初始化與真實 HTTP 200 Health Response，不代表 PostgreSQL 驗證。缺設定為 BLOCKED、請求或回應失敗為 FAIL。
 - `npm run test:db` 使用隔離的 PGlite 執行 SQL／角色測試，不連雲端、不需要 Docker。必須記錄其 PostgreSQL 版本與 Cloud 版本差異；本機 PASS 不代表 Cloud 已部署或多連線併發測試通過。部署後使用 `supabase/tests/verify_schema.sql` 唯讀驗證。
-- `npm run test:rooms` 在隔離 PGlite 套用正式 migrations 與待審 Room System SQL，測真實 Fetch handler／交易／權限；`test:db` 保留 Phase 4 snapshot 回歸範圍。測試 loader 可接受草案核准後移入 migrations，但本階段不得自行移入或部署。
+- `npm run test:rooms` 在隔離 PGlite 套用正式 migrations 與待審 Room System SQL，測真實 Fetch handler／交易／權限；`test:db` 保留 Phase 4 snapshot 回歸範圍。只有使用者明確要求才可將草案移入 migrations；本機納管不等於遠端部署授權。
 - `scripts/check-room-browser.mjs` 使用 Chrome／Playwright 與自動關閉的隔離本機 fixture，攔截 Supabase 網路請求；不連真實房間 API，不讀 Cloud 憑證。缺少瀏覽器工具為 BLOCKED，不得假設通過；Node fixture 只供測試，不是正式常駐伺服器架構。
-- Phase 5 本機驗收紀錄在 `docs/phase5-room-system-report.md`：119 項自動化測試、48 項 browser 檢查與 Build 通過；沒有 lint script。Cloud 部署／Secrets／真實房間整合仍為 BLOCKED，不能把本機紀錄或 Auth Health PASS 當成 Phase 5 完成。
+- 初次本機驗收見 `docs/phase5-room-system-report.md`；最新 `docs/phase5-cloud-deployment-report.md` 記錄 Phase 5 DONE：129 項自動化、H-01、本機 48 browser、真實 Cloud 11 組多人／API 與 Build 通過；沒有 lint script。Cloud 不是用 fixture 或 Auth Health PASS 冒充。
 - H-01 已本機修復：SQL 固定全域→來源→驗證身分→Identity gate，禁止未驗證 Token 建桶；來源只用 runtime connection metadata，不讀 forwarding headers，缺失時用保守共享桶。來源 HMAC 壓至 256 slots，RPC 不接受任意 scope／limit，維持 service_role-only EXECUTE。清理在 gate 之後、有界 SKIP LOCKED；不得回復舊的動態 scope 陣列。
-- 部署安全審核見 `docs/phase5-cloud-deployment-approval.md`，READY 僅代表 H-01 本機安全 Gate：129 項測試、48 browser、PG17.10／20 連線四組併發與獨立 H-01 檢查通過；不是 Cloud 完成或部署授權。本次只授權本機修復，不執行任何遠端 db push（含 dry-run）／Secrets／Function 部署，修正版 dry-run 留待下一次明確授權。
-- 最終驗收僅允許 Cloud 唯讀 SQL／GET 與 migration dry-run，禁止對 linked Cloud 執行任何測試資料異動。`npm run check:db` 比對欄位、限制、索引、GRANT、RLS 與 trigger；既有 `rls_auto_enable` 事件函式必須按已審查來源摘要、型別、擁有者與 search_path 驗證，不能忽略任意額外 SECURITY DEFINER 函式。詳見 `docs/phase4-final-verification.md`。
+- 安全審核歷史見 `docs/phase5-cloud-deployment-approval.md`；本次實際 db push 採核對 linked ref 後 `--linked --skip-vault`，不使用 `--project-ref`，不含 seed／roles／Vault。未出現非預期 Migration、權限錯誤或部署失敗；不做 reset／repair／強制重試。
+- `scripts/check-room-cloud.mjs` 會寫入真實 Cloud，必須有本次明確範圍批准且帶 --allow-test-writes／固定 ref 才可執行，不納入預設 npm test。它不是本機 fixture，不可無授權重跑。留存 QA label P5QA10231042：兩個 finished 房間、兩個已撤銷測試 Host、B 玩家；沒有刪除部署前資料，不可擅自清理或更改。
+- 後續 Cloud 驗收預設唯讀；測試資料寫入另確認範圍。`npm run check:db` 比對欄位、限制、索引、GRANT、RLS 與 trigger；既有 `rls_auto_enable` 事件函式仍按已審查來源摘要、型別、擁有者與 search_path 驗證，不能忽略任意額外 SECURITY DEFINER 函式。詳見 `docs/phase4-final-verification.md`。
 - TypeScript strict，採可維護元件；共用 Loading / Error / Empty State，支援手機、鍵盤及桌面。
 - 視覺參考 https://about.miroom.com/：黑白、大字留白、螢光黃綠與鮮明色塊；沿用原創素材，不複製品牌資產。
 - `VITE_` 環境變數均為公開資訊，不可存放任何私密憑證。

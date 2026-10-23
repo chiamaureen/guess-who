@@ -1,5 +1,21 @@
 # Phase 5 — Cloud Deployment Approval Report
 
+## Latest Cloud Deployment — Phase 5 DONE
+
+使用者已明確批准並完成既有 ref 的唯一 Phase 5 Migration、唯讀 RPC／RLS／GRANT 驗證、兩項 Secrets、room-system v1 ACTIVE 與 11 組真實 Cloud 多人驗收；129 項本機測試及 Build 再次通過。實際 db push 僅使用已核對 linked Project 的 `--linked --skip-vault`，沒有 `--project-ref`、reset／repair／額外 Migration 或資料清除。後續不因本次授權而自動重複部署。
+
+正式紀錄見 [Cloud Deployment Report](phase5-cloud-deployment-report.md)，Phase 6 只已準備設計清單；下方 preflight／NOT TESTED／待批准字樣保留為歷史，不代表最新狀態。
+
+## Latest Final Preflight — PASS
+
+依使用者最後指示，修正版已從草案移至正式 `supabase/migrations/20261023093000_room_system.sql`；不是 /tmp 副本。SHA-256 仍為 `d4917bd4d103b537a575e87d78e100dda4bf71b0b3865525b3b26954f76ad10f`，Phase 4 digest 不變。
+
+實際執行 `npx --no-install supabase migration list --linked` 與 `npx --no-install supabase db push --dry-run --skip-vault --project-ref fgvajdnzrnptdjurhjfo`：Phase 4 local／remote 一致，Phase 5 僅 local；dry-run **只列出 20261023093000_room_system.sql**，seed／roles 均空。一張新表、三個 SECURITY INVOKER RPC、最小權限與 H-01 修正版均與已審內容一致。移入正式目錄後 129 項測試、獨立 H-01 檢查與 Build 再次通過。
+
+`room-system` 維持 verify_jwt=false 及自訂 Host／Room／Player 驗證；兩個自訂後端設定仍為 ROOM_SYSTEM_SIGNING_KEY、ROOM_SYSTEM_ALLOWED_ORIGINS。GitHub Pages `/guess-who/` base、HashRouter 與 Build 已就緒；正式 Pages deployment Workflow 尚未建立，不冒稱已完成前端部署設定。
+
+本次僅本機移檔與 history／dry-run，未真正 db push、部署 Function、設定 Secrets、Commit 或 Push。以下「尚未移入／修正版未 dry-run」描述保留為前次審核紀錄，最新狀態以本節為準；未發現剩餘 Critical／High，但真正雲端 runtime／多人整合尚未驗收。
+
 審核日期：2026-10-23（Asia/Taipei）  
 審核基準：Git HEAD `492f75a` 與目前工作目錄，Node.js 22.23.4、Supabase CLI 2.121.0。  
 範圍：前次部署審核紀錄＋本次 H-01 本機修復與完整回歸。  
