@@ -3,8 +3,8 @@
 ## 架構
 - 單一 Repository，前端 React + Vite + TypeScript、Tailwind CSS、React Router。
 - `src/pages` 為路由頁面，`components` 為共用元件，`hooks` 統一非同步狀態。
-- `src/types` 定義資料契約，`data` 放 Mock Data，`services` 為未來 API 邊界，`lib` 放驗證工具。
-- 未來 Edge Functions 與 SQL migration 放 `supabase/functions` 與 `supabase/migrations`，使用 TypeScript / PostgreSQL。
+- `src/types` 定義資料契約，`services` 為房間 API／Session 邊界，`lib` 放 Client、驗證與儲存工具；分類動態讀取 Database，不以 Mock 假裝成功。
+- Edge Functions 與 SQL migration 放 `supabase/functions` 與 `supabase/migrations`；待審 SQL 在 `supabase/migration-drafts`，不會被 CLI 自動部署。
 - GitHub Pages base 為 `/guess-who/`，採 HashRouter，避免直接重新整理路由造成 404。
 
 ## 需求與安全
@@ -21,14 +21,17 @@
 - 雲端服務優先免費方案，不使用常駐 Node.js server 或 Socket.IO。
 
 ## 工作規範
-- 目前授權 Phase 4 Database Design v1.2：九張應用資料表、七分類 seed、Migration、GRANT／RLS、SQL 測試與設計文件；保留 Phase 2 UI 與 Mock 流程。
-- Phase 5 房間 API／匿名身分、Phase 6 抽題／歷史重置實作、Phase 7 Realtime、Phase 8 題庫圖片及 Phase 9 正式部署均不在本階段。
+- 目前授權 Phase 5 Room System 本機開發與驗收：匿名 Host、建立／加入、等待室、Session 恢復／離開／關閉與文件；保留既有視覺／RWD，不重複開發已完成的功能。
+- 尚未授權 Cloud 部署、修改遠端資料庫或 Secrets、Cloud 測試資料寫入、Commit／Push；Phase 6 抽題／揭曉／歷史重置、Phase 7 Realtime、Phase 8 題庫及 Phase 9 正式部署均不在本階段。
 - 實際 `supabase db push` 必須取得使用者明確確認；不得以任務授權或 sandbox 指令核准代替部署確認。部署前檢查目標 Project、既有資料、Migration history、SQL 與權限；已部署 Migration 不可修改，只能新增增量 Migration。
 - `20261023060000_create_guess_who_schema.sql` 已於 2026-10-23 經使用者確認部署至既有 Cloud，禁止改寫；七分類與九表 RLS／GRANT 已驗證，不代表 Phase 5／6 功能已實作或已授權繼續開發。
 - 不執行 `supabase start`、`supabase db reset`、`supabase db pull`、破壞性清除、強制 Migration repair 或自行刪除既有資料；不啟用付費資源，不自動 Commit／Push。
 - Schema 使用 `celebrities` 同時容納真人與虛構人物；七個分類只 seed 分類，不含正式人物或圖片。測試 fixtures 僅供隔離的 PGlite，不得部署到 Cloud。
 - 所有應用表 ENABLE／FORCE RLS。瀏覽器角色只能 SELECT 啟用分類；其他表預設拒絕，不以 `auth.uid()` 當匿名主持人身分。service_role 只有明確的資料操作權限，Edge Functions 仍須先驗證匿名憑證與房間控制權。
-- Host 長期憑證、單房間 Host Token、玩家 Session 分離，資料庫只存 SHA-256 hex hash；憑證儲存／恢復是 Phase 5 設計，尚未實作。
+- Host 長期憑證、單房間 Host Token、玩家 Session 分離，以用途分離 SHA-256 hex hash 存 DB。瀏覽器 localStorage 保存 bearer 憑證，Web Locks 序列化跨分頁首次建立；不得把身分、Token 放在邀請 URL、log 或分析資料。
+- `room-system` 單一 Edge Function 提供六個 action。`verify_jwt=false` 不是授權：仍須驗證執行環境的 Publishable Key、Host／Room／Player 憑證、來源與限流，禁止信任 Host ID／Player ID／前端 role。
+- 建立房間與分類同交易；requestKey／joinKey 的失敗重試沿用原資料，網路錯誤不得自動清除憑證。等待室名單只手動更新、五秒 cooldown，沒有輪詢或 Realtime；開始遊戲按鈕禁用。
+- `ROOM_SYSTEM_SIGNING_KEY` 與 `ROOM_SYSTEM_ALLOWED_ORIGINS` 僅限 Edge 後端設定；新 API Keys 優先讀取執行環境 `SUPABASE_SECRET_KEYS`／`SUPABASE_PUBLISHABLE_KEYS`，不把後端 Secrets 放進 VITE。跨站 Cookie 不是此 MVP 的身分恢復保證。
 - Phase 6 須以同一 Host 鎖序列化跨房間抽題、開始與歷史重置；題目、歷史及進度必須在同一交易提交。重置須二次確認、只清自己的歷史、無 playing 房間，不刪除 room_questions；禁止自動重置或重複舊題。
 - 歷史 FK 不得因房間清除而連帶刪除去重紀錄；完成遊戲紀錄不因歷史重置而刪除。圖片檔名、來源及 Metadata 也需防答案洩漏，不能只靠隱藏姓名欄位。
 - Node.js 使用 22.18+（`.nvmrc` 為 22）；最新版 Supabase SDK 不支援 Node.js 20，驗證腳本使用原生 TypeScript 載入。
@@ -37,6 +40,9 @@
 - `.env.local`、CLI `.temp`／`.branches` 與憑證必須忽略；CLI 登入和密碼由使用者在自己的互動終端機處理，不寫入命令參數或 Repository。
 - `npm run check:supabase` 只驗證初始化與真實 HTTP 200 Health Response，不代表 PostgreSQL 驗證。缺設定為 BLOCKED、請求或回應失敗為 FAIL。
 - `npm run test:db` 使用隔離的 PGlite 執行 SQL／角色測試，不連雲端、不需要 Docker。必須記錄其 PostgreSQL 版本與 Cloud 版本差異；本機 PASS 不代表 Cloud 已部署或多連線併發測試通過。部署後使用 `supabase/tests/verify_schema.sql` 唯讀驗證。
+- `npm run test:rooms` 在隔離 PGlite 套用正式 migrations 與待審 Room System SQL，測真實 Fetch handler／交易／權限；`test:db` 保留 Phase 4 snapshot 回歸範圍。測試 loader 可接受草案核准後移入 migrations，但本階段不得自行移入或部署。
+- `scripts/check-room-browser.mjs` 使用 Chrome／Playwright 與自動關閉的隔離本機 fixture，攔截 Supabase 網路請求；不連真實房間 API，不讀 Cloud 憑證。缺少瀏覽器工具為 BLOCKED，不得假設通過；Node fixture 只供測試，不是正式常駐伺服器架構。
+- Phase 5 本機驗收紀錄在 `docs/phase5-room-system-report.md`：119 項自動化測試、48 項 browser 檢查與 Build 通過；沒有 lint script。Cloud 部署／Secrets／真實房間整合仍為 BLOCKED，不能把本機紀錄或 Auth Health PASS 當成 Phase 5 完成。
 - 最終驗收僅允許 Cloud 唯讀 SQL／GET 與 migration dry-run，禁止對 linked Cloud 執行任何測試資料異動。`npm run check:db` 比對欄位、限制、索引、GRANT、RLS 與 trigger；既有 `rls_auto_enable` 事件函式必須按已審查來源摘要、型別、擁有者與 search_path 驗證，不能忽略任意額外 SECURITY DEFINER 函式。詳見 `docs/phase4-final-verification.md`。
 - TypeScript strict，採可維護元件；共用 Loading / Error / Empty State，支援手機、鍵盤及桌面。
 - 視覺參考 https://about.miroom.com/：黑白、大字留白、螢光黃綠與鮮明色塊；沿用原創素材，不複製品牌資產。

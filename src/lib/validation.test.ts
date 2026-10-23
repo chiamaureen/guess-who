@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { validateJoinRoom } from './validation'
-import { roomService } from '../services/rooms'
 
-describe('room preview input', () => {
+describe('room input', () => {
   it('accepts a six-character room code and a trimmed nickname', () => {
     expect(validateJoinRoom({ roomCode: 'ABC123', nickname: ' 小明 ' })).toBeNull()
   })
@@ -17,9 +16,7 @@ describe('room preview input', () => {
   it('counts emoji as characters', () => {
     expect(validateJoinRoom({ roomCode: 'ABC123', nickname: '😀'.repeat(20) })).toBeNull()
   })
-  it('requires a category and explicitly reports preview-only behavior', async () => {
-    await expect(roomService.createPreview([])).rejects.toThrow('至少')
-    await expect(roomService.createPreview(['music'])).resolves.toContain('尚未建立真實房間')
-    await expect(roomService.joinPreview({ roomCode: 'ABC123', nickname: '小明' })).resolves.toContain('尚未連線')
+  it('rejects control and direction override characters', () => {
+    for (const nickname of ['名\n字', '\u202e偽裝']) expect(validateJoinRoom({ roomCode: 'ABC123', nickname })).toBeTruthy()
   })
 })

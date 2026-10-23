@@ -6,7 +6,7 @@ WITH application_tables AS (
   FROM pg_class AS relation
   JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
   WHERE namespace.nspname = 'public'
-    AND relation.relname = ANY (ARRAY['categories', 'celebrities', 'celebrity_categories', 'hosts', 'rooms', 'room_categories', 'room_players', 'room_questions', 'host_question_history'])
+    AND relation.relname = ANY (ARRAY['categories', 'celebrities', 'celebrity_categories', 'hosts', 'rooms', 'room_categories', 'room_players', 'room_questions', 'host_question_history', 'room_api_rate_limits'])
 ), columns AS (
   SELECT relation.relname, attribute.*, defaults.adbin, defaults.adrelid
   FROM application_tables AS relation

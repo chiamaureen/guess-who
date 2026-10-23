@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Feedback } from "../components/Feedback";
 import { useAction } from "../hooks/useAction";
 import { roomService } from "../services/rooms";
 
-export function JoinRoomPage() {
+export function JoinRoomPage({ invitationCode }: { invitationCode?: string }) {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState(
-    (params.get("code") ?? "").toUpperCase().slice(0, 6),
+    (invitationCode ?? params.get("code") ?? "").toUpperCase().slice(0, 6),
   );
   const [nickname, setNickname] = useState("");
   const action = useAction();
@@ -37,9 +38,11 @@ export function JoinRoomPage() {
           className="join-form"
           onSubmit={(event) => {
             event.preventDefault();
-            void action.run(() =>
-              roomService.joinPreview({ roomCode, nickname }),
-            );
+            void action.run(async () => {
+              const state = await roomService.join({ roomCode, nickname });
+              void navigate(`/room/${state.room.code}`, { replace: true });
+              return "";
+            });
           }}
         >
           <span className="form-kicker">( your seat is waiting )</span>
@@ -79,11 +82,11 @@ export function JoinRoomPage() {
             className="button button-primary button-static"
             disabled={action.loading}
           >
-            {action.loading ? "檢查中…" : "預覽加入房間"}
+            {action.loading ? "加入中…" : "加入房間"}
             <span aria-hidden="true">→</span>
           </button>
           <Feedback error={action.error} message={action.message} />
-          <p className="form-note">目前為 UI 預覽，尚未連線至真實房間。</p>
+          <p className="form-note">Session 保存在此瀏覽器；重新整理可恢復。遊戲尚未開放，等待室名單需手動更新。</p>
         </form>
       </div>
     </section>

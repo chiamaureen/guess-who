@@ -212,7 +212,7 @@ PK／UNIQUE 自帶索引；另建立人物分類反查、已審核人物 partial
 3. 瀏覽器可將長期 Host 憑證與房間／玩家恢復資料保存於 IndexedDB 等本機持久化儲存，重新整理後透過 API 驗證恢復；不放在 URL、邀請連結、analytics 或日誌。
 4. 純 GitHub Pages 前端的 JS 可讀持久化憑證仍有 XSS／共用裝置風險；本機加密而金鑰同樣可讀不能解決 XSS。需限制第三方 script、檢查依賴、規劃 CSP 與登出／清除方式。跨站 Supabase cookie 不能假設可靠；若採 HttpOnly 同源 cookie，需另外評估同源受信任入口，不宣稱目前已有。
 5. 同裝置保留憑證時重用同一 Host ID；清除儲存或換裝置可能無法恢復，不能靠暱稱、房間代碼或公開 ID 找回控制權。不提供不安全的自動帳號復原，也不因此重置伺服器舊歷史；新匿名身分有自己的歷史。
-6. 私密後端金鑰只放 Edge Functions secrets，絕不放 `VITE_`。Host 身分、Token 發行與持久化目前都只有設計，未修改現有 Mock 流程。
+6. 私密後端金鑰只放 Edge Functions secrets，絕不放 `VITE_`。以上為 Phase 4 設計；Phase 5 已完成身分、Token 與持久化的本機實作，雲端整合仍待批准，見本文末節。
 
 ## 6. 交易與併發策略（Phase 6 實作）
 
@@ -281,3 +281,20 @@ Cloud 部署前唯讀預檢實際回報 PostgreSQL **17.11**、沒有九張應�
 Cloud 另有不在應用 Migration 內的 `public.rls_auto_enable()`／`ensure_rls`。已審查其 event_trigger 型別、postgres 擁有者、固定 `search_path=pg_catalog`、原始碼摘要與只啟用 RLS 的 DDL 事件用途；不是可直接當一般函式使用的答案 RPC。anon／authenticated 雖有 EXECUTE，但無 public schema CREATE。此為已知非阻斷警告，不宣稱 Cloud 完全沒有 SECURITY DEFINER 函式。檢查工具只接受本次審查過的精確摘要及設定，其他額外函式或原始碼異動會失敗；沒有修改平台函式。
 
 最新結果、非阻斷警告、可選的收斂授權草案與 Phase 5 Gate 見 [Final Verification Report](phase4-final-verification.md)。
+
+## 9. Phase 5 Room System 增量草案（尚未部署）
+
+`supabase/migration-drafts/20261023093000_room_system.sql` 尚在待審目錄，不會由 CLI 自動套用。既有 `20261023060000_create_guess_who_schema.sql` 保持原樣；上述九表與 Cloud 驗收紀錄屬於 Phase 4，不代表下列草案已部署。
+
+| 新物件 | 用途與權限 |
+| --- | --- |
+| room_api_rate_limits | 私有第十表：scope_hash、window_started_at、request_count、updated_at；scope_hash 主鍵及清理用 updated_at 索引。ENABLE／FORCE RLS，瀏覽器無任何權限；service_role 只有 SELECT／INSERT／UPDATE／DELETE |
+| room_system_rate_limit(jsonb) | 持久化限流；獨立交易提交，避免主請求失敗後計數回滾 |
+| room_system_action(text,jsonb) | Host bootstrap／恢復／撤銷、建立＋分類、加入、狀態、離開、關閉的交易邊界 |
+| room_system_lobby(uuid,text,uuid) | 產生等待室白名單 DTO；不含憑證 Hash、人物、答案或歷史 |
+
+三個函式均為 SECURITY INVOKER、固定空 search_path；明確撤銷 PUBLIC／anon／authenticated EXECUTE，只授 service_role。不放寬原九表 GRANT／RLS，也不新增瀏覽器寫入 policy；Edge 必須驗證匿名憑證及房間歸屬後才呼叫 RPC。
+
+本機以原九表加草案驗證十表權限；Phase 4 的 `test:db` 保留已部署 baseline，Phase 5 的 `test:rooms` 驗證合併後結構與交易。沒有修改題庫、room_questions、host_question_history 或實作遊戲引擎。
+
+只有使用者批准後才將草案移入正式 migrations、重新測試並 dry-run；不得僅因本機測試通過就部署。詳細 API／生命週期見 [Room System](room-system.md)，待批准指令、Secrets 與 Cloud 驗收見 [Phase 5 Report](phase5-room-system-report.md)。

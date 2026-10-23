@@ -17,7 +17,7 @@ const subject = '40000000-0000-4000-8000-000000000001'
 const secondSubject = '40000000-0000-4000-8000-000000000002'
 const migrationDirectory = new URL('../migrations/', import.meta.url)
 const seed = await readFile(new URL('../seed.sql', import.meta.url), 'utf8')
-const migrations = await Promise.all((await readdir(migrationDirectory)).filter(filename => filename.endsWith('.sql')).sort().map(filename => readFile(new URL(filename, migrationDirectory), 'utf8')))
+const migrations = await Promise.all((await readdir(migrationDirectory)).filter(filename => filename.endsWith('.sql') && filename.split('_')[0] <= '20261023060000').sort().map(filename => readFile(new URL(filename, migrationDirectory), 'utf8')))
 let database
 
 async function scalar(sql, parameters = []) {

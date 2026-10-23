@@ -4,6 +4,7 @@ import { Layout } from './components/Layout'
 import { HomePage } from './pages/HomePage'
 import { CreateRoomPage } from './pages/CreateRoomPage'
 import { JoinRoomPage } from './pages/JoinRoomPage'
+import { LobbyPage } from './pages/LobbyPage'
 
 function ScrollManager() {
   const { pathname, hash, search, key } = useLocation()
@@ -30,5 +31,5 @@ function ScrollManager() {
 }
 
 export default function App() {
-  return <HashRouter><a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>跳至主要內容</a><ScrollManager /><Routes><Route element={<Layout />}><Route index element={<HomePage />} /><Route path="host" element={<CreateRoomPage />} /><Route path="join" element={<JoinRoomPage />} /><Route path="*" element={<section className="inner-page"><h1>迷路了嗎？</h1><p>這個頁面不存在，回首頁再一起玩吧。</p><Link className="button button-primary" to="/">回到首頁 →</Link></section>} /></Route></Routes></HashRouter>
+  return <HashRouter><a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>跳至主要內容</a><ScrollManager /><Routes><Route element={<Layout />}><Route index element={<HomePage />} /><Route path="host" element={<CreateRoomPage />} /><Route path="join" element={<JoinRoomPage />} /><Route path="room/:roomCode" element={<LobbyPage />} /><Route path="*" element={<section className="inner-page"><h1>迷路了嗎？</h1><p>這個頁面不存在，回首頁再一起玩吧。</p><Link className="button button-primary" to="/">回到首頁 →</Link></section>} /></Route></Routes></HashRouter>
 }

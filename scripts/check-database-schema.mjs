@@ -84,10 +84,10 @@ async function main() {
     process.exitCode = 2
     return
   }
-  const differences = differencePaths(local.schema, remote.schema)
-  const extraFunctions = remote.public_functions.filter(functionRow => functionRow.name !== 'guess_who_set_celebrity_updated_at' || functionRow.arguments !== '')
+  const extraFunctions = remote.public_functions.filter(functionRow => !local.public_functions.some(expected => expected.name === functionRow.name && expected.arguments === functionRow.arguments))
   const reviewedFunctions = extraFunctions.filter(isReviewedPlatformFunction)
   const unexpectedFunctions = extraFunctions.filter(functionRow => !isReviewedPlatformFunction(functionRow))
+  const differences = [...differencePaths(local.schema, remote.schema), ...differencePaths(local.public_functions, remote.public_functions.filter(functionRow => !isReviewedPlatformFunction(functionRow)), 'functions')]
   const schemaCreateAllowed = remote.browser_schema_create.some(privilege => privilege.allowed)
   const unsafeObjects = remote.public_views.length > 0 || unexpectedFunctions.length > 0 || remote.realtime_tables.length > 0 || schemaCreateAllowed
   console.log(JSON.stringify({ result: differences.length || unsafeObjects ? 'FAIL' : 'PASS', localVersion: local.server_version, cloudVersion: remote.server_version, migrations: local.migrations, tables: remote.schema.tables.length, columns: remote.schema.columns.length, constraints: remote.schema.constraints.length, indexes: remote.schema.indexes.length, tablePrivilegeChecks: remote.schema.table_privileges.length, differences, publicViews: remote.public_views.length, unexpectedPublicFunctions: unexpectedFunctions.length, reviewedPlatformFunctions: reviewedFunctions.map(functionRow => ({ name: functionRow.name, returnType: functionRow.return_type, securityDefiner: functionRow.security_definer, anonExecute: functionRow.anon_execute, authenticatedExecute: functionRow.authenticated_execute })), browserSchemaCreate: schemaCreateAllowed, realtimeTables: remote.realtime_tables.length, warnings: reviewedFunctions.length ? ['Reviewed RLS event trigger exists outside app migrations; public EXECUTE is unnecessary. See final verification report.'] : [] }, null, 2))

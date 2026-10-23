@@ -27,21 +27,20 @@
 
 前端負責畫面與操作；伺服器負責遊戲狀態、隨機出題與主持人權限。玩家在揭曉前不能取得正確姓名，未來透過資料隔離、RLS 與伺服器授權保護答案。
 
-**目前進度：** 前端 Mock 流程與 Supabase 基礎連線已完成；Phase 4 資料庫結構與安全規則已部署，通過本機 SQL 測試及雲端權限驗證。真正房間 API、匿名身分、遊戲引擎與 Realtime 尚未實作。
+**目前進度：** Phase 4 資料庫已部署；Phase 5 房間 API、匿名身分與等待室完成本機實作及驗證，雲端部署與整合驗收待批准。正式遊戲引擎與 Realtime 尚未實作，目前不能視為可完整遊玩的雲端遊戲。
 
 ## 專案結構
 
 ```text
 src/
-  pages/        首頁、建立房間、加入房間
+  pages/        首頁、建立房間、加入房間與等待室
   components/   共用元件與互動效果
   hooks/        共用狀態與互動邏輯
-  services/     Mock 服務與未來 API 串接
+  services/     房間 API、分類讀取與 Session 管理
   lib/          Supabase Client、設定與驗證工具
-  data/         Mock Data
   types/        資料型別
   styles/       全站樣式與 RWD
-supabase/       CLI 設定、SQL migrations、分類 seed 與資料庫測試
+supabase/       Edge Functions、SQL migrations／待審草案、分類 seed 與隔離測試
 scripts/        連線驗證與測試腳本
 docs/           階段驗收與開發紀錄
 ```
@@ -55,14 +54,16 @@ npm install
 npm run dev
 ```
 
-開啟 Vite 顯示的 `/guess-who/` 網址。目前建立與加入房間仍為 Mock 預覽。
+開啟 Vite 顯示的 `/guess-who/` 網址。分類從 Supabase 讀取；建立／加入房間需要先完成經批准的 Phase 5 後端部署，未部署時會顯示錯誤，不會假裝成功。
 
-需要驗證 Supabase 時，依 `.env.example` 在 `.env.local` 填入 Project URL 與 Publishable Key；不要放入私密金鑰或密碼。
+使用分類與房間服務前，依 `.env.example` 在 `.env.local` 填入 Project URL 與 Publishable Key；不要放入私密金鑰或密碼。
 
 - `npm test`：執行自動化測試。
 - `npm run test:db`：在隔離的本機資料庫驗證 Schema 與權限，不連線雲端。
+- `npm run test:rooms`：驗證房間 API、匿名身分、權限與待審 SQL，不連線雲端。
+- `npm run check:edge`：檢查 Edge Function TypeScript。
 - `npm run build`：檢查 TypeScript 並建置前端。
 - `npm run check:supabase`：驗證 SDK 初始化與雲端 Auth API 連線。
 - `npm run check:db`：重播隔離的本機 Schema，與已連結雲端結構進行唯讀比對。
 
-開發規範見 [AGENTS.md](AGENTS.md)，資料庫設計與 ERD 見 [Database Schema](docs/database-schema.md)，各階段驗收結果見 [docs](docs/)。
+開發規範見 [AGENTS.md](AGENTS.md)，架構與 ERD 見 [Database Schema](docs/database-schema.md)，房間生命週期見 [Room System](docs/room-system.md)，本機測試結果與待審部署計畫見 [Phase 5 Report](docs/phase5-room-system-report.md)。
