@@ -4,7 +4,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { createRoomHandler, RoomError } from '../functions/room-system/handler.ts'
 import { createGameHandler } from '../functions/game-engine/handler.ts'
 
-export const gameDraft = new URL('../migration-drafts/20261023120000_game_engine.sql', import.meta.url)
+export const gameMigration = new URL('../migrations/20261023120000_game_engine.sql', import.meta.url)
 export const actor = '10000000-0000-4000-8000-000000000001'
 export const singer = '10000000-0000-4000-8000-000000000002'
 
@@ -52,7 +52,6 @@ export async function createGameFixture(origin = 'http://localhost:5173') {
   await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;')
   const directory = new URL('../migrations/', import.meta.url)
   for (const filename of (await readdir(directory)).filter(name => name.endsWith('.sql')).sort()) await database.exec(await readFile(new URL(filename, directory), 'utf8'))
-  await database.exec(await readFile(gameDraft, 'utf8'))
   await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))
   const rpc = async (kind, action, input) => database.transaction(async transaction => {
     await transaction.exec('SET LOCAL ROLE service_role')

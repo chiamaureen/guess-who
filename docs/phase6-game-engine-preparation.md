@@ -1,6 +1,6 @@
 # Phase 6 — Game Engine Preparation
 
-**狀態更新：** 本文保留 Phase 5 完成時的準備清單。Phase 6 本機實作與最新範圍見 [Game Engine](game-engine.md)／[Phase 6 Report](phase6-game-engine-report.md)；使用者本次限制為單一進行中房間，不執行本文早期提出的多房調度測試。共用 Host 列鎖僅保護歷史重置與抽題的一致性。尚無新的 Cloud 部署授權。
+**狀態更新：** 本文保留 Phase 5 完成時的準備清單。Phase 6 已本機驗收並於後續衝刺經明確批准部署，見 [Game Engine](game-engine.md)／[部署衝刺](mvp-deployment-sprint.md)；完整 Cloud 遊戲仍缺題庫。本階段限制為單一進行中房間，不執行早期提出的多房調度；Host 列鎖僅保護歷史重置與抽題。題庫寫入與 Git／Pages 發布尚未授權。
 
 前提：Phase 5 已於 2026-10-23 完成 Cloud 部署與真實多人驗收，見 [部署報告](phase5-cloud-deployment-report.md)。本文件是使用者要求的下一階段準備，不代表引擎已實作或已批准新的雲端變更。
 

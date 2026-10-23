@@ -23,7 +23,7 @@
 ## 工作規範
 - Phase 5 Room System 已完成本機與 Cloud 驗收：匿名 Host、建立／加入、等待室、Session 恢復／離開／關閉；保留既有視覺／RWD，不重複開發已完成的功能。
 - 使用者已明確批准並完成本次限定 Cloud 部署：ref fgvajdnzrnptdjurhjfo、唯一 Phase 5 Migration、兩個自訂 Secrets、room-system v1 與可辨識 QA 新資料。這不是後續變更的永久授權；新 Cloud 寫入／部署需另批准，仍不 Commit／Push 或發布 GitHub Pages。
-- Phase 6 單房引擎已完成本機實作，見 `docs/game-engine.md`／`docs/phase6-game-engine-report.md`；尚未部署 Cloud。此階段只用本對話，不使用 Subagents／Worktree，不加入多房協調或限制資料庫只能存一房。Phase 7 Realtime、Phase 8 正式題庫及 Phase 9 發布尚未開始。
+- Phase 6 本機已驗收，且使用者於本次衝刺明確批准唯一增量及 game-engine 部署，已完成 Cloud Migration／權限驗證／Function v1 ACTIVE；但雲端題庫 0，完整 15 題 Cloud 遊戲仍 BLOCKED。詳見 `docs/mvp-deployment-sprint.md`。只用本對話，不使用 Subagents／Worktree；不加入多房協調或資料庫單房限制。Phase 7 尚未開始。
 - 實際 `supabase db push` 必須取得使用者明確確認；不得以任務授權或 sandbox 指令核准代替部署確認。部署前檢查目標 Project、既有資料、Migration history、SQL 與權限；已部署 Migration 不可修改，只能新增增量 Migration。
 - `20261023060000_create_guess_who_schema.sql` 與 `20261023093000_room_system.sql` 均已於 2026-10-23 經使用者確認部署，禁止改寫；後者 digest 為 d4917bd4d103b537a575e87d78e100dda4bf71b0b3865525b3b26954f76ad10f。十表／三 RPC／RLS／GRANT 已驗證，不代表 Phase 6 引擎已實作。
 - 不執行 `supabase start`、`supabase db reset`、`supabase db pull`、破壞性清除、強制 Migration repair 或自行刪除既有資料；不啟用付費資源，不自動 Commit／Push。
@@ -35,7 +35,7 @@
 - `ROOM_SYSTEM_SIGNING_KEY` 與 `ROOM_SYSTEM_ALLOWED_ORIGINS` 僅限 Edge 後端設定；新 API Keys 優先讀取執行環境 `SUPABASE_SECRET_KEYS`／`SUPABASE_PUBLISHABLE_KEYS`，不把後端 Secrets 放進 VITE。跨站 Cookie 不是此 MVP 的身分恢復保證。
 - Phase 6 單房寫入固定先鎖驗證後的 Host、再鎖 Room，Host 鎖只沿用既有順序並防 reset 與抽題競態，不加入多房調度。題目、歷史及進度同交易；Next 綁定原 questionId，重送不可多前進。重置須二次確認與原 historyRevision、只清自己的歷史、無 playing 房間（含過期尚未結束者），不刪除 room_questions。
 - 新增 `game-engine` Function，沿用 Phase 5 signing key／origins／H-01 gate；state／image 共用 get-room-state 限流，修改共用 close-room 限流，不接受任意 scope。七個 action 包含私有 get-question-image，verify_jwt=false 仍須驗證 apikey 與三種自訂憑證。不可自動部署／重設既有 secrets。
-- Phase 6 SQL 目前僅在 `supabase/migration-drafts/20261023120000_game_engine.sql`，須明確批准才移入正式目錄；新增私有 game_image_assets 與 room_questions.game_image_id，不改寫已部署 SQL。RPC／helper 為 INVOKER、空 search_path、service_role-only；不得擴大 browser 權限。
+- Phase 6 `supabase/migrations/20261023120000_game_engine.sql` 已經使用者批准納管並部署，SHA-256 為 4c76a0e386267effe6c2b21f9193a96f08d6350ccfd8bef7b2a2da4aea383589，現在亦禁止改寫。新增私有 game_image_assets 與 room_questions.game_image_id；RPC／helper 為 INVOKER、空 search_path、service_role-only，未擴大 browser 權限。本次批准不含題庫寫入、Secrets 更動、Git Commit／Push 或 Pages 發布。
 - 遊戲只使用已審核的私有中性 PNG asset，512 KiB／1600px 上限，僅 IHDR／IDAT／IEND、CRC 檢查，禁止文字／EXIF／SVG／尾隨資料。service_role 無 asset UPDATE，題目 FK 固定原圖；Edge 不 fetch 任意來源 URL、不回傳未揭曉的姓名／來源／人物 ID／署名。正式素材須事先確認授權允許實際呈現方式，Phase 8 才做匯入／重新編碼；既有原始 URL 不會自動變成合格題目。
 - 歷史 FK 不得因房間清除而連帶刪除去重紀錄；完成遊戲紀錄不因歷史重置而刪除。圖片檔名、來源及 Metadata 也需防答案洩漏，不能只靠隱藏姓名欄位。
 - Node.js 使用 22.18+（`.nvmrc` 為 22）；最新版 Supabase SDK 不支援 Node.js 20，驗證腳本使用原生 TypeScript 載入。
@@ -55,4 +55,6 @@
 - 視覺參考 https://about.miroom.com/：黑白、大字留白、螢光黃綠與鮮明色塊；沿用原創素材，不複製品牌資產。
 - `VITE_` 環境變數均為公開資訊，不可存放任何私密憑證。
 - 每次完成工作執行可行的 `npm test`、`npm run build`，並回報結果與未完成項目。
-- `npm run test:game` 套用已部署 migrations＋Phase 6 草案，以獨立 PGlite 與原創合成 PNG 測試，不改 Phase 4／5 snapshot。`game-concurrency.mjs` 用私有 Unix socket PG／20 連線，`check-game-browser.mjs` 用攔截至本機的 Chrome 驗證；不得將本機 fixtures 或 PASS 當成雲端 15 題驗收。
+- `npm run test:game` 套用正式 migrations，以獨立 PGlite 與原創合成 PNG 測試；Phase 4／5 snapshot 保持各階段範圍。`game-concurrency.mjs` 用私有 Unix socket PG／20 連線，`check-game-browser.mjs` 用攔截至本機的 Chrome 驗證；不得將本機 fixtures 或 PASS 當成雲端 15 題驗收。
+- Phase 8 僅準備候選與離線匯入工具：`prepare-question-bank.mjs` 讀公開 Wikidata／Commons Metadata，一律 pending／approved=false；`prepare-question-import.mjs` 拒絕未審核資料，只產生本機 SQL，不連 Cloud。prepared 目錄須忽略，不進 public／src。人工 subject／rights／image、署名時機與可解碼 PNG 審核不可省略，Metadata Public domain 不代表已完成審核。
+- `.github/workflows/pages.yml` 只有 workflow_dispatch，避免 Push 意外發布；使用最小權限、固定 Action commit、Actions 公開 vars。尚未設定 GitHub 遠端 vars／Pages，也未 Commit／Push／執行 Workflow；所有後續發布與題庫寫入需再取得明確批准，免費 Pages 須確認 Repository 可用資格，不自動改公開或付費方案。

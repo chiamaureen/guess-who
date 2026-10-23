@@ -27,7 +27,7 @@
 
 前端負責畫面與操作；伺服器負責遊戲狀態、隨機出題與主持人權限。房間與遊戲引擎分為獨立 Edge Functions，透過資料隔離、RLS 與伺服器授權保護答案；圖片透過私有入口提供，不公開原始檔名。
 
-**目前進度：** Phase 5 房間系統已部署並完成雲端多人驗收。Phase 6 單房遊戲引擎已完成本機實作，包含 15 題流程、答案隔離及跨場去重，尚待審核部署與正式題庫。現在以手動更新題目驗證流程；Realtime 與 GitHub Pages 發布仍待後續階段。
+**目前進度：** 房間系統與單房遊戲引擎已部署 Supabase；15 題、答案隔離與跨場去重已完成本機驗證。正式題庫仍為空，因此雲端尚不能完整遊玩。已準備候選題庫審核工具與 GitHub Pages Workflow；Realtime 與網站發布尚未完成。
 
 ## 專案結構
 
@@ -68,3 +68,5 @@ npm run dev
 - `npm run check:db`：重播隔離的本機 Schema，與已連結雲端結構進行唯讀比對。
 
 開發規範見 [AGENTS.md](AGENTS.md)，架構見 [Database Schema](docs/database-schema.md)、[Room System](docs/room-system.md) 與 [Game Engine](docs/game-engine.md)。驗收紀錄見 [Phase 5 Cloud Report](docs/phase5-cloud-deployment-report.md) 與 [Phase 6 Report](docs/phase6-game-engine-report.md)。
+
+目前發布關卡見 [MVP Deployment Sprint](docs/mvp-deployment-sprint.md)；題庫準備見 [Question Bank](data/question-bank/README.md)。

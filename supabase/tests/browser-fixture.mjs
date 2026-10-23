@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
 import { createRoomHandler, RoomError } from '../functions/room-system/handler.ts'
 import { createGameHandler } from '../functions/game-engine/handler.ts'
-import { gameDraft, seedGameFixtures } from './game-fixture.mjs'
+import { seedGameFixtures } from './game-fixture.mjs'
 
 export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.0.1:5177', gamePeople = 0 } = {}) {
   const database = new PGlite()
@@ -14,7 +14,6 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
   for (const filename of migrations) await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))
   if (!migrations.includes('20261023093000_room_system.sql')) await database.transaction(async transaction => transaction.exec(await readFile(new URL('../migration-drafts/20261023093000_room_system.sql', import.meta.url), 'utf8')))
   await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))
-  await database.exec(await readFile(gameDraft, 'utf8'))
   if (gamePeople) await seedGameFixtures(database, gamePeople)
   const signingKey = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')
   const rpc = (name, parameters) => database.transaction(async transaction => {

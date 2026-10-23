@@ -49,7 +49,7 @@ before(async () => {
   database = new PGlite()
   await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;')
   const directory = new URL('../migrations/', import.meta.url)
-  const migrations = (await readdir(directory)).filter(filename => filename.endsWith('.sql')).sort()
+  const migrations = (await readdir(directory)).filter(filename => filename.endsWith('.sql') && filename <= '20261023093000_room_system.sql').sort()
   for (const filename of migrations) await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))
   if (!migrations.includes('20261023093000_room_system.sql')) await database.transaction(async transaction => transaction.exec(await readFile(new URL('../migration-drafts/20261023093000_room_system.sql', import.meta.url), 'utf8')))
   await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))

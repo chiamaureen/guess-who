@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtemp, readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { actor, gameDraft, seedGameFixtures } from './game-fixture.mjs'
+import { actor, seedGameFixtures } from './game-fixture.mjs'
 
 if (!process.env.PG_BIN_DIR || !process.env.PG_DRIVER_MODULE) {
   console.log('BLOCKED: PG_BIN_DIR and PG_DRIVER_MODULE must reference installed local PostgreSQL tools. Cloud database URLs are not accepted.')
@@ -24,7 +24,6 @@ if (!process.env.PG_BIN_DIR || !process.env.PG_DRIVER_MODULE) {
     await pool.query('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;')
     const migrations=new URL('../migrations/',import.meta.url)
     for(const file of (await readdir(migrations)).filter(name=>name.endsWith('.sql')).sort()) await pool.query(await readFile(new URL(file,migrations),'utf8'))
-    await pool.query(await readFile(gameDraft,'utf8'))
     await pool.query(await readFile(new URL('../seed.sql',import.meta.url),'utf8'))
     await seedGameFixtures(pool,45)
     const version=(await pool.query('SHOW server_version')).rows[0].server_version

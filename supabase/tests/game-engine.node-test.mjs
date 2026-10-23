@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { before, after, beforeEach, test } from 'node:test'
 import { readFile } from 'node:fs/promises'
-import { createGameFixture, seedGameFixtures, fixturePng, pngChunk, actor, singer, gameDraft } from './game-fixture.mjs'
+import { createGameFixture, seedGameFixtures, fixturePng, pngChunk, actor, singer, gameMigration } from './game-fixture.mjs'
 import { hashToken, nonce } from '../functions/room-system/crypto.ts'
 import { createGameHandler } from '../functions/game-engine/handler.ts'
 
@@ -260,10 +260,10 @@ test('game actions retain H-01 fixed scopes; fake rotating tokens do not allocat
   for(let index=0;index<20;index++) assert.equal((await request('start-game',{roomCode:'ABC123'},{'x-host-credential':`gw_host_${nonce()}`})).response.status,429)
   assert.equal(await scalar('SELECT count(*)::int FROM public.room_api_rate_limits'),capped)
 })
-test('draft is additive, old migrations stay pinned, no realtime or external image fetching is introduced', async () => {
+test('game migration is additive, deployed migrations stay pinned, no realtime or external image fetching is introduced', async () => {
   const {createHash}=await import('node:crypto')
   for(const [name,digest] of [['20261023060000_create_guess_who_schema.sql','8f5e0ed648794c09ced3b9d221b32ce070bf3b73f936d2f4bbe5b2834bdca07c'],['20261023093000_room_system.sql','d4917bd4d103b537a575e87d78e100dda4bf71b0b3865525b3b26954f76ad10f']]) assert.equal(createHash('sha256').update(await readFile(new URL(`../migrations/${name}`,import.meta.url))).digest('hex'),digest)
-  const sql=await readFile(gameDraft,'utf8')
+  const sql=await readFile(gameMigration,'utf8')
   assert.ok(!/SECURITY DEFINER|CREATE POLICY|ALTER PUBLICATION|TRUNCATE|DROP TABLE/.test(sql))
   await database.exec(await readFile(new URL('./verify_game_engine.sql',import.meta.url),'utf8'))
 })

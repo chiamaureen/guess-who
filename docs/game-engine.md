@@ -1,6 +1,6 @@
 # Guess Who — Single Room Game Engine
 
-Phase 6 本機實作；未部署 Supabase Cloud。正式部署與題庫匯入需要另外批准。本文件不取代 [Phase 5 房間授權](room-system.md)。
+Phase 6 已依使用者本次明確批准部署 Migration 與 game-engine v1；雲端題庫仍為 0，未做完整 15 題 Cloud 遊戲驗收。題庫寫入／網站發布需要另批准，見 [部署衝刺](mvp-deployment-sprint.md)。本文件不取代 [Phase 5 房間授權](room-system.md)。
 
 ## 架構
 
@@ -86,6 +86,6 @@ PLAYWRIGHT_MODULE=/absolute/playwright/index.mjs node scripts/check-game-browser
 
 瀏覽器須先啟動 127.0.0.1:5177 Vite。工具使用隔離本機資料庫／合成圖片並攔截所有 Supabase API；不是 Cloud 成功證據。PostgreSQL 多連線工具僅接受本機 binaries／driver，建立私有 Unix socket cluster，不接受雲端 URL。缺工具為 BLOCKED。
 
-SQL 草案目前位於 `supabase/migration-drafts/20261023120000_game_engine.sql`，不會被 db push 自動部署。待明確批准後才納入正式 migrations，核對 linked ref、唯一候選與 dry-run，再規劃 db push／`game-engine` deploy。`verify_game_engine.sql` 為 READ ONLY catalog 驗證，尚未在 Cloud 執行。
+SQL 已納入 `supabase/migrations/20261023120000_game_engine.sql` 並經限定批准部署，現在不可改寫。`verify_game_engine.sql` 已在 Cloud READ ONLY 驗證，RPC／RLS／GRANT 通過；原九表與 Phase 5 規則不變。Cloud 15 題資料流程未測，見最新部署報告。
 
 正式 Cloud 題庫沒有在本次建立或驗證。沒有合格 15 位＋私有圖片前，不可宣稱雲端完整遊戲驗收成功；後續測試寫入及素材匯入必須另外批准。

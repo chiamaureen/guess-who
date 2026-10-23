@@ -188,7 +188,7 @@ RWD suite 在密集頁面刷新中等待真實 60 秒來源窗口，因所有測
 
 ## 11. 後續邊界
 
-- Phase 6 已新增獨立 `game-engine` 與遊戲面板的本機實作：15 位 DISTINCT 庫存、逐題交易、揭曉、換題、結束及二次確認歷史重置；尚未部署，不改 `room-system` 的六個既有 action。細節見 [Game Engine](game-engine.md) 與 [Phase 6 Report](phase6-game-engine-report.md)。
+- Phase 6 已新增獨立 `game-engine` 並經批准部署：15 位 DISTINCT 庫存、逐題交易、揭曉、換題、結束及二次確認歷史重置；不改 `room-system` 六個既有 action。題庫仍空，雲端完整遊戲未驗收；見 [Game Engine](game-engine.md) 與 [部署衝刺](mvp-deployment-sprint.md)。
 - Phase 7 才做權限正確且不含答案的 Realtime，取代手動更新；不直接公開含答案資料表。
 - Phase 8 才正式匯入人物／圖片並審核授權。Phase 6 不讀原始 URL 作為玩家照片，使用已審核私有 PNG；room-system 本身仍不查詢／回傳題目答案。
 - 原 `check-room-cloud.mjs` 保留 Phase 5 當時的 UI 驗收假設；不能直接當 Phase 6 雲端測試工具。下一次 Cloud 寫入需另批准並審核更新測試範圍，本次沒有執行它。
