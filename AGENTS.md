@@ -23,7 +23,7 @@
 ## 工作規範
 - Phase 5 Room System 已完成本機與 Cloud 驗收：匿名 Host、建立／加入、等待室、Session 恢復／離開／關閉；保留既有視覺／RWD，不重複開發已完成的功能。
 - 使用者已明確批准並完成本次限定 Cloud 部署：ref fgvajdnzrnptdjurhjfo、唯一 Phase 5 Migration、兩個自訂 Secrets、room-system v1 與可辨識 QA 新資料。這不是後續變更的永久授權；新 Cloud 寫入／部署需另批准，仍不 Commit／Push 或發布 GitHub Pages。
-- Phase 6 本機已驗收，且使用者於本次衝刺明確批准唯一增量及 game-engine 部署，已完成 Cloud Migration／權限驗證／Function v1 ACTIVE；Phase 8 現已匯入 15 位可用人物，但完整 15 題 Cloud 遊戲尚未執行、需另授權。詳見 `docs/phase8-cloud-import-report.md`。只用本對話，不使用 Subagents／Worktree；不加入多房協調或資料庫單房限制。Phase 7 尚未開始。
+- Phase 6 本機與 Cloud 完整 15 題驗收均 PASS；Phase 8 已匯入 15 位可用人物，使用者另批准新 QA Host／Player／兩房的真實驗收。兩 QA 房 DPK86G／D5U556 已 finished，15 題不重複、15 筆該 Host 歷史保留、同 Host 第二場題庫不足被拒，沒有 reset。詳見 `docs/phase6-cloud-acceptance-report.md`。Phase 7 僅本機已完成，Cloud 尚未批准或部署。只用本對話，不使用 Subagents／Worktree；不加入多房協調或資料庫單房限制。
 - 實際 `supabase db push` 必須取得使用者明確確認；不得以任務授權或 sandbox 指令核准代替部署確認。部署前檢查目標 Project、既有資料、Migration history、SQL 與權限；已部署 Migration 不可修改，只能新增增量 Migration。
 - `20261023060000_create_guess_who_schema.sql` 與 `20261023093000_room_system.sql` 均已於 2026-10-23 經使用者確認部署，禁止改寫；後者 digest 為 d4917bd4d103b537a575e87d78e100dda4bf71b0b3865525b3b26954f76ad10f。十表／三 RPC／RLS／GRANT 已驗證，不代表 Phase 6 引擎已實作。
 - 不執行 `supabase start`、`supabase db reset`、`supabase db pull`、破壞性清除、強制 Migration repair 或自行刪除既有資料；不啟用付費資源，不自動 Commit／Push。
@@ -31,7 +31,7 @@
 - 所有應用表 ENABLE／FORCE RLS。瀏覽器角色只能 SELECT 啟用分類；其他表預設拒絕，不以 `auth.uid()` 當匿名主持人身分。service_role 只有明確的資料操作權限，Edge Functions 仍須先驗證匿名憑證與房間控制權。
 - Host 長期憑證、單房間 Host Token、玩家 Session 分離，以用途分離 SHA-256 hex hash 存 DB。瀏覽器 localStorage 保存 bearer 憑證，Web Locks 序列化跨分頁首次建立；不得把身分、Token 放在邀請 URL、log 或分析資料。
 - `room-system` 單一 Edge Function 提供六個 action。`verify_jwt=false` 不是授權：仍須驗證執行環境的 Publishable Key、Host／Room／Player 憑證、來源與限流，禁止信任 Host ID／Player ID／前端 role。
-- 建立房間與分類同交易；requestKey／joinKey 的失敗重試沿用原資料，網路錯誤不得自動清除憑證。等待室及遊戲只手動更新、五秒 cooldown，沒有輪詢或 Realtime；Start 經真實遊戲 API，不做 Mock fallback，缺部署／題庫必須明確失敗。
+- 建立房間與分類同交易；requestKey／joinKey 的失敗重試沿用原資料，網路錯誤不得自動清除憑證。Phase 7 透過私有 Broadcast 後拉取 Edge 快照，自動更新名單／遊戲；不輪詢，手動五秒按鈕保留作備援。缺 Phase 7 部署顯示未設定，不假裝已同步；Start 仍走真實遊戲 API，沒有 Mock fallback。
 - `ROOM_SYSTEM_SIGNING_KEY` 與 `ROOM_SYSTEM_ALLOWED_ORIGINS` 僅限 Edge 後端設定；新 API Keys 優先讀取執行環境 `SUPABASE_SECRET_KEYS`／`SUPABASE_PUBLISHABLE_KEYS`，不把後端 Secrets 放進 VITE。跨站 Cookie 不是此 MVP 的身分恢復保證。
 - Phase 6 單房寫入固定先鎖驗證後的 Host、再鎖 Room，Host 鎖只沿用既有順序並防 reset 與抽題競態，不加入多房調度。題目、歷史及進度同交易；Next 綁定原 questionId，重送不可多前進。重置須二次確認與原 historyRevision、只清自己的歷史、無 playing 房間（含過期尚未結束者），不刪除 room_questions。
 - 新增 `game-engine` Function，沿用 Phase 5 signing key／origins／H-01 gate；state／image 共用 get-room-state 限流，修改共用 close-room 限流，不接受任意 scope。七個 action 包含私有 get-question-image，verify_jwt=false 仍須驗證 apikey 與三種自訂憑證。不可自動部署／重設既有 secrets。
@@ -57,8 +57,21 @@
 - 每次完成工作執行可行的 `npm test`、`npm run build`，並回報結果與未完成項目。
 - `npm run test:game` 套用正式 migrations，以獨立 PGlite 與原創合成 PNG 測試；Phase 4／5 snapshot 保持各階段範圍。`game-concurrency.mjs` 用私有 Unix socket PG／20 連線，`check-game-browser.mjs` 用攔截至本機的 Chrome 驗證；不得將本機 fixtures 或 PASS 當成雲端 15 題驗收。
 - Phase 8 僅準備候選與離線匯入工具：`prepare-question-bank.mjs` 讀公開 Wikidata／Commons Metadata，一律 pending／approved=false；`prepare-question-import.mjs` 拒絕未審核資料，只產生本機 SQL，不連 Cloud。prepared 目錄須忽略，不進 public／src。人工 subject／rights／image、署名時機與可解碼 PNG 審核不可省略，Metadata Public domain 不代表已完成審核。
-- Phase 8 已完成逐頁來源與視覺工程審核：原候選排除兩張 personality 警示、補林肯／格蘭特，ignored reviewed-bank.json 共 15 位。使用者明確批准修正旗標後重試，已單交易純 INSERT 45 列且唯讀驗證 PASS，Cloud 可用且未使用人物 15 位；不得再重跑此批次。完整 Cloud 遊戲 QA 仍需另行批准。不得將 Codex 審核冒稱人類／律師或全球權利保證。
+- Phase 8 已完成逐頁來源與視覺工程審核：原候選排除兩張 personality 警示、補林肯／格蘭特，ignored reviewed-bank.json 共 15 位。使用者明確批准修正旗標後重試，已單交易純 INSERT 45 列且唯讀驗證 PASS；不得再重跑此批次。其後限定 Cloud QA 已另獲批准並完成：該 QA Host 已用 15 位，新的 Host 仍可用 15 位，去重不是全域。後續 QA 重跑需新授權。不得將 Codex 審核冒稱人類／律師或全球權利保證。
+- `scripts/check-game-cloud.mjs` 必須明確 --allow-test-writes／固定 ref 才能寫 Cloud，不納入 npm test；本次成功收據見 Cloud acceptance report。首次 DevTools response.body() 為空但原生 Blob 正常，只修本機驗收工具，--resume-qa 僅用本次私密 QA 備份沿用首題，沒有額外 Host／第一房。圖片驗證取實際 Blob、已審 PNG SHA-256、headers、chunks／解碼；不得因工具錯誤調整後端圖片權限。
 - 第一次匯入因漏加 CLI `--linked` 在 SQL 前遭拒；本次經使用者明確批准後，使用 `--linked --project-ref fgvajdnzrnptdjurhjfo` 完成原批次，詳見 `docs/phase8-cloud-import-report.md`。`db query --project-ref` 必須同時帶 `--linked`。`supabase/tests/verify_question_bank_access.sql` 僅唯讀，實際切換 anon／authenticated 驗證直接圖片 SELECT 被拒，不修改權限。
 - 圖片處理只限已核對來源：原檔 SHA-1、來源 revision 與 PNG SHA-256 保存，Sharp 作本機解碼與縮放，再以最小 RGB PNG encoder 去 Metadata；中性檔名、每張至多 128 KiB，不改前端設計。Vite server.fs.deny 封鎖題庫目錄，dist 不含原圖／審核 Metadata／SQL。
 - `source-review.json`、`prepare-reviewed-images.mjs` 預設不自動核准圖片；只有逐張檢視後的明確確認可 finalize。匯入 SQL 先驗 active category 與重複 Wikidata，與既有 UNIQUE 一同拒絕重跑，無 UPSERT／UPDATE／DELETE。先批准確切 SQL SHA-256 再執行，三個 Migration 均禁止改寫。
 - `.github/workflows/pages.yml` 只有 workflow_dispatch，避免 Push 意外發布；使用最小權限、固定 Action commit、Actions 公開 vars。尚未設定 GitHub 遠端 vars／Pages，也未 Commit／Push／執行 Workflow；所有後續發布與題庫寫入需再取得明確批准，免費 Pages 須確認 Repository 可用資格，不自動改公開或付費方案。
+
+## Phase 7 Realtime 邊界
+
+- 新增增量草案 `supabase/migration-drafts/20261023180000_room_realtime.sql`，尚未納入 migrations，更沒有部署。禁止改寫 Phase 4～6；原 Cloud 仍為 Phase 6 版本，新的 room-system／game-engine 須另批准部署。
+- 採私有 Supabase Broadcast，不用 Postgres Changes，不對 anon 開放任何遊戲表或加入 publication。三個 DB trigger 只傳 `{changed:true}`／invalidate，固定房間 UUID topic；禁止使用會帶出 NEW／OLD row 的 broadcast_changes。
+- `get-realtime-ticket` 使用原 Host／Room／Player 憑證與 H-01 get-room-state gate。新 grant RPC 為 service_role-only INVOKER；JWT 固定 anon role、sub=opaque grant ID、rt_room、五分鐘期限，不含 Host／Player Token 或 Hash。不建立 Auth users。
+- 新 `ROOM_REALTIME_SIGNING_JWK` 只放後端，必須是 Supabase 信任的 ES256／P-256 key，kid 對應信任公鑰；本機 fixture key 不可當 Cloud key。公開 JWKS 不能簽章，ROOM_SYSTEM_SIGNING_KEY 也不能直接拿來當 Realtime JWT key。信任設定、Secrets、Migration 與兩個 Function 部署仍須明確批准，不能擅自輪替現有 Auth key。
+- room_realtime_grants 以房間／驗證後身分唯一，快照留在私表；授權 helper 為空 search_path 的窄輸出 SECURITY DEFINER，只回 boolean。Realtime messages 用 row topic＋JWT grant 的 restrictive SELECT guard，private INSERT 對 anon／authenticated 禁止，即使存在其他寬鬆 policy 也不得繞過。
+- Supabase private-channel 授權有快取：離開／撤銷後拒絕新 ticket／重連，既有連線最遲依 JWT 五分鐘到期終止；只能收到常數通知，不代表還能讀答案／照片，所有 Edge 操作仍逐次授權。前端四分鐘左右自動重新授權，JWT 僅記憶體，不進共用 Client、localStorage、URL 或 log。
+- useRoomSync 每房一訂閱：先查詢、訂閱後再查詢；重連／回前景／online 後重新拉取；serial read＋mutation epoch 防舊回應覆蓋，重複通知 debounce，訊號絕不直接修改題目。卸載取消 socket、timer、listener。
+- H-01 全域／來源／身分限流與可信來源設計不變。HTTP 429 依 Retry-After 自動恢復初始 Lobby、快照與照片，不改 cap，不用假 X-Forwarded-For 分散來源。grants 清理僅在驗證後有界 100 列，無假 Token 動態建桶。
+- Phase 7 本機測試以真實 Edge handlers／PGlite 草案／本機 WebSocket 協定 fixture 驗證，不是 Supabase Cloud Realtime／Deno runtime。最終瀏覽器 bridge 不用 connectToServer(url)（該 API 不支援改 URL），必須全面攔截並手動轉送本機，防誤連 Cloud。後續真實 Cloud 寫入／測試另批准。

@@ -1,4 +1,5 @@
 import { deriveToken, hashToken, nonce, validNonce, validToken } from './crypto.ts'
+import { signRealtimeTicket } from './realtime.ts'
 
 type Payload = Record<string, unknown>
 export interface RateLimitRequest {
@@ -12,11 +13,14 @@ export interface RateLimitRequest {
 export interface Backend {
   rateLimit(request: RateLimitRequest): Promise<{ allowed: boolean; authenticated: boolean; retryAfter: number }>
   action(action: string, input: Payload): Promise<Payload>
+  realtimeGrant?(input: Payload): Promise<Payload>
 }
 export interface HandlerConfig {
   origins: string[]
   publishableKeys: string[]
   signingKey: string
+  realtimeSigningJwk?: string
+  projectUrl?: string
 }
 
 const errors: Record<string, [number, string]> = {
@@ -80,7 +84,7 @@ export function randomRoomCode() {
   return Array.from(crypto.getRandomValues(new Uint8Array(6)), byte => alphabet[byte & 31]).join('')
 }
 
-function safeLobby(data: Payload) {
+export function safeLobby(data: Payload) {
   const room = data.room as Payload
   const viewer = data.viewer as Payload
   assertInput(room && viewer && Array.isArray(data.categories) && Array.isArray(data.players))
@@ -106,7 +110,7 @@ export function createRoomHandler(config: HandlerConfig, backend: Backend) {
     if (request.method !== 'POST') return new Response(JSON.stringify({ error: { code: 'METHOD_NOT_ALLOWED', message: '僅支援 POST。' } }), { status: 405, headers })
     try {
       const action = new URL(request.url).pathname.split('/').filter(Boolean).at(-1) ?? ''
-      assertInput(['host-session', 'create-room', 'join-room', 'get-room-state', 'leave-room', 'close-room'].includes(action))
+      assertInput(['host-session', 'create-room', 'join-room', 'get-room-state', 'leave-room', 'close-room', 'get-realtime-ticket'].includes(action))
       let input: Payload = {}
       let bodyError: unknown
       try { input = await readBody(request) } catch (error) { bodyError = error }
@@ -117,7 +121,7 @@ export function createRoomHandler(config: HandlerConfig, backend: Backend) {
       const address = connection?.sourceAddress?.trim()
       const source = address && address.length <= 128 ? address : 'unavailable'
       const sourceHash = await hashToken('rate-source', await deriveToken(config.signingKey, 'rate-source', source))
-      const rateRequest: RateLimitRequest = { action, bootstrap, source_bucket: Number.parseInt(sourceHash.slice(0, 2), 16) }
+      const rateRequest: RateLimitRequest = { action: action === 'get-realtime-ticket' ? 'get-room-state' : action, bootstrap, source_bucket: Number.parseInt(sourceHash.slice(0, 2), 16) }
       if (validToken(host, 'host')) rateRequest.host_hash = await hashToken('host', host)
       else if (validToken(player, 'player')) rateRequest.player_hash = await hashToken('player', player)
       if (typeof input.roomCode === 'string' && /^[a-zA-Z0-9]{6}$/.test(input.roomCode.trim())) rateRequest.room_code = input.roomCode.trim().toUpperCase()
@@ -131,7 +135,13 @@ export function createRoomHandler(config: HandlerConfig, backend: Backend) {
       const credentials: Payload = host ? { host_hash: await hashToken('host', host) } : player ? { player_hash: await hashToken('player', player) } : {}
       if (roomToken) credentials.room_token_hash = await hashToken('room', roomToken)
       let data: Payload
-      if (action === 'host-session') {
+      if (action === 'get-realtime-ticket') {
+        fields(input, ['roomCode'])
+        if (!(host && roomToken || player)) throw new RoomError('UNAUTHORIZED')
+        if (!backend.realtimeGrant || !config.realtimeSigningJwk || !config.projectUrl) throw new RoomError('SERVICE_UNAVAILABLE')
+        const grant = await backend.realtimeGrant({ ...credentials, room_code: roomCode(input.roomCode) })
+        data = await signRealtimeTicket(config.realtimeSigningJwk, `${config.projectUrl}/auth/v1`, grant)
+      } else if (action === 'host-session') {
         fields(input, ['mode', 'bootstrapKey', 'confirm'])
         if (bootstrap) {
           assertInput(!host && !player && !roomToken && validNonce(input.bootstrapKey))

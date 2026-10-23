@@ -22,8 +22,11 @@ if (!process.env.PG_BIN_DIR || !process.env.PG_DRIVER_MODULE) {
     started=true
     pool=new driver.Pool({host:directory,port:6543,database:'postgres',user:'postgres',max:20,connectionTimeoutMillis:10000,options:'-c statement_timeout=15000 -c lock_timeout=12000'})
     await pool.query('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;')
+    await pool.query(await readFile(new URL('./realtime-platform.sql',import.meta.url),'utf8'))
     const migrations=new URL('../migrations/',import.meta.url)
-    for(const file of (await readdir(migrations)).filter(name=>name.endsWith('.sql')).sort()) await pool.query(await readFile(new URL(file,migrations),'utf8'))
+    const migrationFiles=(await readdir(migrations)).filter(name=>name.endsWith('.sql')).sort()
+    for(const file of migrationFiles) await pool.query(await readFile(new URL(file,migrations),'utf8'))
+    if(process.env.PG_TEST_REALTIME==='1' && !migrationFiles.includes('20261023180000_room_realtime.sql')) await pool.query(await readFile(new URL('../migration-drafts/20261023180000_room_realtime.sql',import.meta.url),'utf8'))
     await pool.query(await readFile(new URL('../seed.sql',import.meta.url),'utf8'))
     await seedGameFixtures(pool,45)
     const version=(await pool.query('SHOW server_version')).rows[0].server_version
@@ -47,6 +50,21 @@ if (!process.env.PG_BIN_DIR || !process.env.PG_DRIVER_MODULE) {
     await call('room_system_action','host-session',{mode:'bootstrap',host_hash:hostHash})
     const room=await call('room_system_action','create-room',{host_hash:hostHash,room_token_hash:roomHash,room_code:'GAME01',category_ids:[actor]})
     const input={host_hash:hostHash,room_token_hash:roomHash,room_code:room.room.code}
+    if(process.env.PG_TEST_REALTIME==='1') {
+      const grants=await Promise.all(Array.from({length:20},async()=>{
+        const client=await pool.connect()
+        try {
+          await client.query('BEGIN; SET LOCAL ROLE service_role')
+          const result=await client.query('SELECT public.room_realtime_grant($1::jsonb) AS data',[JSON.stringify(input)])
+          await client.query('COMMIT')
+          return result.rows[0].data
+        } catch(error) {await client.query('ROLLBACK');throw error}
+        finally {client.release()}
+      }))
+      assert.equal(new Set(grants.map(grant=>grant.grantId)).size,1)
+      assert.equal(Number((await pool.query('SELECT count(*) FROM public.room_realtime_grants')).rows[0].count),1)
+      checks.push({name:'20 parallel authorized realtime leases reuse exactly one grant row',result:'PASS'})
+    }
     const game=(action,extra={})=>call('game_engine_action',action,{...input,...extra})
     const scalar=async sql=>Object.values((await pool.query(sql)).rows[0])[0]
     const starts=await Promise.all(Array.from({length:20},()=>game('start-game')))
@@ -66,10 +84,15 @@ if (!process.env.PG_BIN_DIR || !process.env.PG_DRIVER_MODULE) {
     await assert.rejects(game('reveal-answer',{question_id:questionId}),error=>error.message==='STALE_STATE')
     await pool.query("CREATE FUNCTION public.fixture_fail_history() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture failure after question insert'; END $$; CREATE TRIGGER fixture_fail_history BEFORE INSERT ON public.host_question_history FOR EACH ROW EXECUTE FUNCTION public.fixture_fail_history()")
     await game('reveal-answer',{question_id:next[0].question.id})
+    const notificationsBeforeFailure=process.env.PG_TEST_REALTIME==='1'?await scalar('SELECT count(*)::int FROM realtime.messages'):0
     await assert.rejects(game('next-question',{question_id:next[0].question.id}))
     assert.equal(await scalar('SELECT current_question FROM public.rooms'),2)
     assert.equal(await scalar('SELECT count(*)::int FROM public.room_questions'),2)
     assert.equal(await scalar('SELECT count(*)::int FROM public.host_question_history'),2)
+    if(process.env.PG_TEST_REALTIME==='1') {
+      assert.equal(await scalar('SELECT count(*)::int FROM realtime.messages'),notificationsBeforeFailure)
+      checks.push({name:'real PostgreSQL rollback also rolls back all private invalidation messages',result:'PASS'})
+    }
     await pool.query('DROP TRIGGER fixture_fail_history ON public.host_question_history; DROP FUNCTION public.fixture_fail_history()')
     checks.push({name:'injected failure between question and history rolls back the entire draw',result:'PASS'})
     const finishes=await Promise.all(Array.from({length:20},()=>game('finish-game',{question_id:next[0].question.id})))

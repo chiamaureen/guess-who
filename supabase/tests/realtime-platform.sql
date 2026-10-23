@@ -1,0 +1,11 @@
+CREATE SCHEMA realtime;
+CREATE TABLE realtime.messages(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,topic text NOT NULL,event text NOT NULL,payload jsonb NOT NULL,private boolean NOT NULL,extension text NOT NULL DEFAULT 'broadcast');
+ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE realtime.messages FORCE ROW LEVEL SECURITY;
+GRANT USAGE ON SCHEMA realtime TO anon,authenticated,service_role;
+GRANT SELECT,INSERT ON realtime.messages TO anon,authenticated,service_role;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA realtime TO anon,authenticated,service_role;
+CREATE POLICY platform_receive ON realtime.messages FOR SELECT TO anon,authenticated USING(true);
+CREATE POLICY platform_send ON realtime.messages FOR INSERT TO anon,authenticated WITH CHECK(true);
+CREATE FUNCTION realtime.topic() RETURNS text LANGUAGE sql STABLE AS $$ SELECT current_setting('realtime.topic',true) $$;
+CREATE FUNCTION realtime.send(payload jsonb,event text,topic text,private boolean) RETURNS void LANGUAGE sql AS $$ INSERT INTO realtime.messages(payload,event,topic,private) VALUES(payload,event,topic,private) $$;

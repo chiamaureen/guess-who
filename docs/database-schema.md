@@ -1,6 +1,6 @@
 # Guess Who — Database Schema
 
-依據 Phase 4 Database Design Specification **v1.2**。第 1–8 節保留 Phase 4 baseline／當時的後續設計；第 9 節為已部署 Phase 5，第 10 節為 Phase 6 增量。房間及引擎均已部署，完整遊戲仍等待正式題庫；Realtime 尚未實作。
+依據 Phase 4 Database Design Specification **v1.2**。第 1–8 節保留 Phase 4 baseline／當時的後續設計；第 9 節為已部署 Phase 5，第 10 節為 Phase 6 增量。房間、引擎與 15 位正式題庫已上雲，完整 Cloud 15 題已驗收；第 11 節為尚未部署的 Phase 7 Realtime 草案。
 
 ## 1. 架構與範圍
 
@@ -311,3 +311,15 @@ Cloud 另有不在應用 Migration 內的 `public.rls_auto_enable()`／`ensure_r
 - Host→Room 列鎖與單一 RPC 交易保護單房開始／抽題／揭曉／結束。Next 以原題 UUID 防重送；歷史重置鎖同 Host，明確確認且核對 revision，無 playing 才刪自己的 history，保留題目與其他 Host 紀錄。不設全域單房限制或多房調度機制。
 
 驗證 SQL：`supabase/tests/verify_game_engine.sql` 已在隔離與 Cloud READ ONLY 執行，三函式與新私表權限通過；既有 checker 的十表範圍亦零漂移（不將其誤稱為涵蓋新表）。完整 API／圖片邊界見 [Game Engine](game-engine.md)，最新部署與題庫阻礙見 [部署衝刺](mvp-deployment-sprint.md)。
+
+## 11. Phase 7 Private Broadcast 增量（僅本機草案）
+
+`supabase/migration-drafts/20261023180000_room_realtime.sql` 尚未進入 migrations、更未部署，不能修改既有三個 Migration。詳見 [Phase 7 Report](phase7-realtime-report.md)。
+
+- 新私表 room_realtime_grants：id、room_id、viewer_id／viewer_role、credential_snapshot／room_token_snapshot、expires_at；房間／身分 UNIQUE，ENABLE／FORCE RLS，browser 無任何權限，service_role 明確 CRUD。快照 Hash 不會放進 JWT 或 Broadcast。
+- 新 INVOKER grant RPC 僅 service_role；復用既有 Room 驗證，最長五分鐘與 Room 到期上限，驗證後才有界清理 100 列。
+- boolean 授權 helper 與常數通知 trigger function 為空 search_path 的窄範圍 SECURITY DEFINER；前者僅用於 realtime.messages RLS，後者禁止直接 EXECUTE，不能讀出答案。
+- realtime.messages 限定 row topic／JWT grant 的 receive policy 與 restrictive guards；Client 無 private publish 權限。既有遊戲表完全不開 SELECT，也不加入 publication。
+- rooms 狀態／題號、玩家加入／離開、題目新增／揭曉的三個 trigger 僅 private `{changed:true}`，通知跟隨原交易回滾；沒有改動原 C 模式／題號 UNIQUE／FK。
+- 新表若未來批准部署，應用表為十二張；現有 Cloud 仍十一張。私有 JWT 需另批准可信 ES256 key 與後端 Secret；沒有以自訂 Host Token 冒充 Supabase JWT。
+- 測試平台模型 realtime-platform.sql 僅供本機 PGlite／原生 PG；不可部署。verify_room_realtime.sql 已本機 PASS，Cloud 尚未執行。

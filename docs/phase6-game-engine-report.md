@@ -2,9 +2,9 @@
 
 日期：2026-10-23（Asia/Taipei）
 
-**後續狀態更新：** 使用者於部署衝刺另行明確批准 Phase 6 Migration 與 game-engine，已完成 Cloud 部署／唯讀權限與 CORS 驗證；詳見 [MVP Deployment Sprint](mvp-deployment-sprint.md)。以下保留原本本機驗收時的草案路徑與未授權狀態，屬歷史收據。正式 SQL 現位於 migrations、禁止再改寫；完整 Cloud 15 題仍因題庫為 0 而 BLOCKED。
+**最新狀態：Phase 6 Cloud Acceptance PASS。** 使用者另行批准後，已完成 Cloud 部署、Phase 8 最小題庫與真正雙角色完整 15 題驗收，詳見 [Cloud Acceptance Report](phase6-cloud-acceptance-report.md)。兩 QA 房均 finished，15 題不同人物／15 筆歷史、答案隔離、私圖、刷新與第二場 C 模式拒絕均通過。正式 SQL 位於 migrations 且禁止改寫；尚未 Commit／Push／發布 Pages 或導入 Realtime。
 
-**本機開發驗收：READY。雲端部署／完整正式遊戲驗收：NOT READY／BLOCKED。**
+**以下為原本本機驗收時的歷史收據：** 本機 READY、當時 Cloud NOT READY／BLOCKED；其中草案路徑與未授權狀態不代表現在進度，以本頁頂端最新 Cloud 收據為準。
 
 核心引擎、兩角色 UI、答案隔離與 C 模式已在本機隔離環境驗證；尚未取得 Phase 6 雲端部署或測試資料寫入授權，沒有查詢或補齊正式題庫，不能宣稱雲端 15 題整合成功。本次不開始 Phase 7／8，也不重做 Phase 5。
 

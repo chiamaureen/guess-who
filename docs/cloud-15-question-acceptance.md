@@ -1,11 +1,11 @@
 # Guess Who — Cloud 15 Question Acceptance Plan
 
-**狀態：READY TO EXECUTE AFTER APPROVAL，不是已通過。** 本文件只準備測試流程，尚未對 Cloud 建立任何 Host／Room／Player／題目或歷史。
+**狀態：本次限定 Cloud 驗收已獲批准並完成，PASS。** 全部 15 題、雙角色圖片／答案隔離、刷新恢復、C 模式第二場拒絕及唯讀完整性均通過；兩房已關閉，保留 QA Host 的 15 筆歷史。首次 DevTools 空 body 僅修正本機工具，沿用同一 QA 身分與第一房繼續。完整收據與限制見 [Cloud Acceptance Report](phase6-cloud-acceptance-report.md)。本文件保留已執行流程，不授權自動重跑。
 
 ## 授權與前置條件
 
 1. 題庫匯入已獲單獨批准並完成；同批 `verify-import.sql`（READ ONLY）實際 PASS，expected_subjects=15、verified_subjects=15，唯讀盤點可用且未使用人物 15 位。見 [Cloud Import Report](phase8-cloud-import-report.md)。執行 QA 前仍需重新唯讀確認當下庫存，不得重複匯入。
-2. 再取得 **可辨識 QA 業務資料寫入** 授權：建議一個新專用 Host、兩個新房間、一位 Player；第一房完整 15 題、第二房驗證不足與手動 reset 後第 1 題。Reset 只影響此專用 Host；不使用既有主持人、舊房間或 Phase 5 留存資料。
+2. 本次已取得 **可辨識 QA 業務資料寫入** 授權：一個新專用 Host、兩個新房間、一位 Player；第一房完整 15 題，第二房驗證題庫不足並關閉。**本次不重置任何 Host 歷史，包括 QA Host**；不使用既有主持人、舊房間或 Phase 5 留存資料。
 3. 不清除既有 Cloud 資料／限流桶、不改 cap、不輪替 Signing Key。測試憑證只留在獨立 browser context／本機私密備份，不寫 URL、報告、截圖、console 或 HAR。
 4. 使用兩個獨立瀏覽器 profile／context 模擬 Host 與 Player；新 Host 必須沒有舊 history。只使用已核對的 Project fgvajdnzrnptdjurhjfo 與允許的 Origin。
 5. 目前題庫只提供政治人物；Host 勾選「政治人物」。不選沒有已審人物的分類冒充庫存。
@@ -30,8 +30,7 @@
 | 14 | Host 確認 Finish，兩角色刷新 | finished、15/15；已揭曉答案保留，不能再次開始／換題 |
 | 15 | 執行第一房 READ ONLY verifier，**在任何 reset 之前** | 15 questions、15 distinct_people、15 revealed、專用 Host history=15 |
 | 16 | 同 Host 建第二房並開始 | 只有 15 人且已用盡，因此 INSUFFICIENT_QUESTIONS；第二房仍 waiting／0/15，歷史仍 15 |
-| 17 | Host 明確確認只重置自己的歷史 | 專用 Host history=0；第一房 15 題不刪除，其他 Host／Room 不變 |
-| 18 | 第二房 Start 並刷新 | 可重新產生第 1 題，history=1；可提前 Finish 收尾，保留該一筆歷史 |
+| 17 | 關閉仍為 waiting 的第二房，重新整理確認 | finished／0 題；第一房仍 15 題，專用 Host history=15；不執行 reset、不產生第二場題目 |
 
 只有全程真正 Cloud Request 與 Cloud PostgreSQL 回應才可標記 PASS。網路攔截至本機、空題庫拒絕、本機 RPC 測試、Auth Health 或 Client 初始化都不能替代本流程。
 
@@ -62,5 +61,5 @@ npx --no-install supabase db query --linked --file /tmp/guess-who-qa-game.sql
 - 時間（Asia/Taipei）、Project Ref、部署 Function version、題庫 SQL SHA-256。
 - QA room code／room ID、步驟結果、HTTP status／安全錯誤碼、匿名的問題 UUID／進度。
 - 不含 Token／Hash／未揭曉答案的截圖及選擇性 DTO keys 收據；不要匯出含憑證的 raw HAR。
-- 第一房完成前後 history、第二房不足、reset 保留題目、最後可辨識 QA 留存資料。
+- 第一房完成前後 history、第二房不足與關閉、本次未執行任何 reset、最後可辨識 QA 留存資料。
 - 任何未執行項目一律 NOT TESTED／BLOCKED；未來 Realtime 不在本次範圍，Player 仍手動 Refresh State。

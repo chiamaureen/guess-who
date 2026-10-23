@@ -1,13 +1,13 @@
 # Guess Who — Single Room Game Engine
 
-Phase 6 已依使用者本次明確批准部署 Migration 與 game-engine v1；雲端題庫仍為 0，未做完整 15 題 Cloud 遊戲驗收。題庫寫入／網站發布需要另批准，見 [部署衝刺](mvp-deployment-sprint.md)。本文件不取代 [Phase 5 房間授權](room-system.md)。
+Phase 6 Migration／game-engine v1 與 15 位題庫已在明確批准下上雲，真正 15 題 [Cloud Acceptance](phase6-cloud-acceptance-report.md) 已 PASS。Phase 7 本機加入私有 Broadcast 失效通知及自動拉取最新狀態，尚待部署批准，見 [Realtime Report](phase7-realtime-report.md)。本文件不取代 [Phase 5 房間授權](room-system.md)。
 
 ## 架構
 
 - 保留 `room-system` 六個既有操作與 Session 儲存方式。另建 `game-engine` Edge Function，避免更動已上雲的房間狀態契約；前端房間頁新增 `GamePanel`，不更換網站設計。
 - PostgreSQL 是狀態唯一來源；一次只考慮一個 playing 房間，不設全域單房限制、不加入多房調度。每次修改固定 Host→Room 列鎖，同房並行請求序列化，Host 鎖同時防歷史 reset 競態。
 - 一個 `game_engine_action` RPC＝一個交易；題目、歷史、進度全部提交或全部回滾。限流用獨立已提交交易，不會跟失敗的遊戲操作一起回滾。
-- 不用 Realtime／輪詢／WebSocket。兩角色明確手動更新，5 秒按鈕 cooldown；刷新只重新授權讀取既有題目。
+- Phase 6 原本只提供手動更新；Phase 7 本機改為私有 Broadcast 提醒後拉取 Edge 狀態，不輪詢。手動按鈕只作備援，刷新仍重新授權讀取既有題目，不重抽。
 
 ## API
 
@@ -31,8 +31,9 @@ Host 帶 `x-host-credential`＋`x-room-token`；Player 只帶 `x-player-session`
 
 - `room`：id、code、status、currentQuestion、totalQuestions=15、expiresAt。
 - `viewer`：經後端確認的 role、id；不是前端授權依據。
+- Phase 7 本機 Edge DTO 另加入經 safeLobby 過濾的 categories／players，與 GameState 同一次 RPC 快照回傳；不新增敏感資料或第二次讀取，舊 parseGameState 仍相容。
 - `question`：waiting 為 null；遊戲中為隨機 UUID、number、revealed。
-- **Host 或已揭曉**才增加 answer 與 attribution（author、license、text、source）。未揭曉 Player 完全沒有這些鍵，也沒有 celebrity ID、category ID、Wikidata ID、原始 image_url／檔名。
+- **Host 或已揭曉**才增加 answer 與 attribution（author、license、text、source）。未揭曉 Player 的 question 完全沒有這些鍵，也沒有 celebrity ID、人物分類映射、Wikidata ID、原始 image_url／檔名；回應外層 categories 僅是房間已選的分類。
 - 只有 Host 得到 `historyRevision`，供二次確認時快照；前端不儲存題目、答案或權威進度。
 - SQL 先過濾，Edge 再以實際通過驗證的角色白名單過濾，前端型別解析亦不保留隱藏欄位。私表／RPC 不對 browser 開放，沒有 Realtime publication。
 

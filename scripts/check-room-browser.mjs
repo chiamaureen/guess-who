@@ -47,7 +47,7 @@ if (chromium) {
         return route.fulfill({ response: await route.fetch({ url: `${fixture}/categories`, headers: { origin } }) })
       }
       if (/^\/functions\/v1\/(room-system|game-engine)\//.test(url.pathname)) {
-        if (/\/(get-room-state|get-game-state|get-question-image)$/.test(url.pathname)) { readRequests++; if (firstStateRequestAt === undefined) firstStateRequestAt = Date.now() }
+        if (/\/(get-room-state|get-game-state|get-question-image|get-realtime-ticket)$/.test(url.pathname)) { readRequests++; if (firstStateRequestAt === undefined) firstStateRequestAt = Date.now() }
         const headers = { ...request.headers(), origin, apikey: 'sb_publishable_fixture', 'x-forwarded-for': `fixture-${label}` }
         delete headers.authorization
         const response = await route.fetch({ url: `${fixture}${url.pathname}`, headers })
@@ -155,7 +155,7 @@ if (chromium) {
     })
     await check('manual refresh updates host roster and is cooldown-limited', async () => {
       await host.getByRole('button', { name: '重新整理名單' }).click()
-      await host.getByText('名單已更新。').waitFor()
+      await host.waitForFunction(() => document.querySelectorAll('.player-list li').length === 2)
       assert.equal(await host.locator('.player-list li').count(), 2)
       assert.equal(await host.getByRole('button', { name: '請稍候 5 秒' }).isDisabled(), true)
     })

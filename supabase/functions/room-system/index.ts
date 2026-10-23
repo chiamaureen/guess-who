@@ -23,13 +23,14 @@ Deno.serve(async (request, connection) => {
         if (error) throw new RoomError(error.code === 'P0001' ? error.message : 'INTERNAL_ERROR')
         return data
       }
-      handler = createRoomHandler({ origins: (Deno.env.get('ROOM_SYSTEM_ALLOWED_ORIGINS') ?? '').split(',').map(value => value.trim()).filter(Boolean), signingKey: Deno.env.get('ROOM_SYSTEM_SIGNING_KEY') ?? '', publishableKeys: keys('SUPABASE_PUBLISHABLE_KEYS') }, {
+      handler = createRoomHandler({ origins: (Deno.env.get('ROOM_SYSTEM_ALLOWED_ORIGINS') ?? '').split(',').map(value => value.trim()).filter(Boolean), signingKey: Deno.env.get('ROOM_SYSTEM_SIGNING_KEY') ?? '', publishableKeys: keys('SUPABASE_PUBLISHABLE_KEYS'), projectUrl: url, realtimeSigningJwk: Deno.env.get('ROOM_REALTIME_SIGNING_JWK') }, {
         rateLimit: async input => {
           const result = await call('room_system_rate_limit', { p_request: input })
           if (typeof result?.allowed !== 'boolean' || typeof result?.authenticated !== 'boolean' || !Number.isInteger(result?.retryAfter) || result.retryAfter < 1) throw new Error('INVALID_RATE_RESPONSE')
           return result
         },
         action: (action, input) => call('room_system_action', { p_action: action, p_input: input }),
+        realtimeGrant: input => call('room_realtime_grant', { p_input: input }),
       })
     }
     let sourceAddress: string | undefined

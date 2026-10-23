@@ -39,7 +39,7 @@ if(chromium) {
       const url=new URL(request.url())
       if(url.pathname==='/rest/v1/categories') return route.fulfill({response:await route.fetch({url:`${fixture.url}/categories`,headers:{origin}})})
       if(!/^\/functions\/v1\/(room-system|game-engine)\//.test(url.pathname)) throw new Error('Unexpected external API call')
-      if(/\/(get-room-state|get-game-state|get-question-image)$/.test(url.pathname)) reads++
+      if(/\/(get-room-state|get-game-state|get-question-image|get-realtime-ticket)$/.test(url.pathname)) reads++
       const headers={...request.headers(),origin,apikey:'sb_publishable_fixture'}
       delete headers.authorization
       const response=await route.fetch({url:`${fixture.url}${url.pathname}`,headers})
@@ -67,7 +67,7 @@ if(chromium) {
       await player.goto(invite)
       await player.getByLabel('你的暱稱').fill('Phase6 玩家')
       await player.getByRole('button',{name:'加入房間',exact:true}).click()
-      await player.getByRole('region',{name:'遊戲區域'}).getByText('等待主持人開始遊戲，請手動更新狀態。',{exact:true}).waitFor()
+      await player.getByRole('region',{name:'遊戲區域'}).getByText('等待主持人開始遊戲，畫面將自動同步。',{exact:true}).waitFor()
     })
     await check('Host starts question1, sees name and private binary image; Player has no controls',async()=>{
       await host.getByRole('button',{name:'開始遊戲',exact:true}).click()

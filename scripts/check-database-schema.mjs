@@ -34,6 +34,7 @@ export async function localCatalog() {
   const database = new PGlite()
   try {
     await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;')
+    await database.exec(await readFile(new URL('../supabase/tests/realtime-platform.sql', import.meta.url), 'utf8'))
     const directory = new URL('../supabase/migrations/', import.meta.url)
     const files = (await readdir(directory)).filter(filename => filename.endsWith('.sql')).sort()
     const versions = files.map(filename => filename.split('_')[0])

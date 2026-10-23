@@ -1,6 +1,6 @@
 # Phase 8 — Minimum Question Bank Review
 
-2026-10-23（Asia/Taipei）。**已審核原批次 15 位人物現已獲批准匯入 Cloud，45 列單交易 COMMIT 且唯讀驗證 PASS；雲端可用且未使用人物 15 位。** 第一次 CLI 旗標錯誤已在明確重試授權下修正。見 [Cloud Import Report](phase8-cloud-import-report.md)；完整遊戲 QA 尚未授權或執行。
+2026-10-23（Asia/Taipei）。**已審核原批次 15 位人物現已獲批准匯入 Cloud，45 列單交易 COMMIT 且唯讀驗證 PASS。** 第一次 CLI 旗標錯誤已在明確重試授權下修正。見 [Cloud Import Report](phase8-cloud-import-report.md)；後續另獲授權的完整 [Cloud 15 題驗收](phase6-cloud-acceptance-report.md) 已 PASS，QA Host 已用 15 位，新 Host 仍有 15 位可用。下列未使用數量為匯入時紀錄。
 
 ## 結果與範圍
 
@@ -95,7 +95,7 @@ data/question-bank/prepared/review-20261023/
 
 ## 下一個明確批准
 
-**原批次已完成，不需再次批准或重跑匯入。** 下一個明確批准應限於 Cloud 15 題 QA 房間與專用 Host／Player 業務資料寫入，詳見 [15 Question Acceptance](cloud-15-question-acceptance.md)；本次沒有執行這些操作。
+**原批次已完成，不需再次批准或重跑匯入。** Cloud 15 題 QA 現亦已在另行批准下 PASS，見 [15 Question Acceptance](cloud-15-question-acceptance.md)。接下來等待使用者明確批准發布範圍；不自動重跑 QA、Commit／Push 或 Pages。
 
 以下為已完成匯入／驗證的命令紀錄；執行前已核對 linked ref、檔案 hash、庫存與權限。**不可重複執行寫入命令**，重複批次會被拒絕：
 

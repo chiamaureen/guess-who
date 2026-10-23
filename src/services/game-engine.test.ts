@@ -21,6 +21,25 @@ function fixture(role: 'host' | 'player' = 'host') {
 }
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 describe('game engine session boundary', () => {
+  it('loads a coherent lobby and game snapshot in one authenticated request without storing state', async () => {
+    const { service, gameApi, values } = fixture()
+    gameApi.mockResolvedValue({ ...state(), players: [], categories: [] })
+    const result = await service.getSnapshot(code)
+    expect(result.game.question?.number).toBe(1)
+    expect(result.lobby.room.currentQuestion).toBe(1)
+    expect(gameApi).toHaveBeenCalledTimes(1)
+    expect([...values.values()].join('')).not.toContain('正確姓名')
+  })
+  it('requests a short Realtime ticket with only existing headers and never trusts caller IDs', async () => {
+    const context = fixture('player')
+    const ticket = { topic: 'gw-room:10000000-0000-4000-8000-000000000001', accessToken: 'aaa.bbb.ccc', expiresAt: new Date(Date.now() + 240000).toISOString() }
+    const api = vi.fn(async () => ticket)
+    const service = createRoomService({ ...context.options, api })
+    expect(await service.getRealtimeTicket(code)).toEqual(ticket)
+    expect(api).toHaveBeenCalledWith('get-realtime-ticket', { roomCode: code }, { 'x-player-session': playerToken })
+    await expect(service.controlSnapshot(code, 'start-game')).rejects.toThrow('只有主持人')
+    expect([...context.values.values()].join('')).not.toContain('aaa.bbb.ccc')
+  })
   it('restores Host state with existing host and room credentials, never stores questions or answers', async () => {
     const { service, options, gameApi, values } = fixture()
     await service.getGameState(code)

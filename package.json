@@ -10,12 +10,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run && node --test scripts/check-supabase.node-test.mjs && npm run test:db && npm run test:rooms && npm run test:game && node --test scripts/question-bank.node-test.mjs scripts/question-images.node-test.mjs && npm run check:edge",
+    "test": "vitest run && node --test scripts/check-supabase.node-test.mjs && npm run test:db && npm run test:rooms && npm run test:game && npm run test:realtime && node --test scripts/question-bank.node-test.mjs scripts/question-images.node-test.mjs && npm run check:edge",
     "test:db": "node --test supabase/tests/database.node-test.mjs",
     "check:supabase": "node scripts/check-supabase.mjs",
     "check:db": "node scripts/check-database-schema.mjs --linked",
     "test:rooms": "node --test supabase/tests/room-system.node-test.mjs",
     "test:game": "node --test supabase/tests/game-engine.node-test.mjs",
+    "test:realtime": "node --test supabase/tests/realtime.node-test.mjs",
     "check:edge": "tsc -p tsconfig.edge.json"
   },
   "dependencies": {
@@ -37,6 +38,7 @@
     "tailwindcss": "^4.1.0",
     "typescript": "~5.9.3",
     "vite": "^7.1.0",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "ws": "^8.22.0"
   }
 }

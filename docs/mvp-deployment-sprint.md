@@ -2,7 +2,7 @@
 
 2026-10-23，台灣時間。首次實查約 19:57，**未能在 20:00 前完成公開可玩的 MVP**；不以未審核題庫或本機 PASS 冒充正式上線。
 
-**後續更新：** 以下保留當時候選尚未審核的部署收據，不是最新庫存。15 位來源／視覺審核批次（原 13＋補 2）已獲批准匯入 Cloud、唯讀確認可用且未使用人物 15 位，見 [Cloud Import Report](phase8-cloud-import-report.md)；完整遊戲 QA 寫入與 Git／Pages 仍待另行批准。
+**後續更新：** 以下保留當時候選尚未審核的部署收據，不是最新庫存。15 位來源／視覺審核批次（原 13＋補 2）已獲批准匯入 Cloud，其後真正雙角色完整 15 題與 C 模式驗收亦已另獲批准並 PASS，見 [Cloud Acceptance Report](phase6-cloud-acceptance-report.md)。兩 QA 房已關閉，15 筆該 Host 歷史保留；Git／Pages 仍待另行批准。
 
 ## Current Status
 

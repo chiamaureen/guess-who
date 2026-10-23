@@ -9,6 +9,7 @@ import { seedGameFixtures } from './game-fixture.mjs'
 export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.0.1:5177', gamePeople = 0 } = {}) {
   const database = new PGlite()
   await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;')
+  await database.exec(await readFile(new URL('./realtime-platform.sql', import.meta.url), 'utf8'))
   const directory = new URL('../migrations/', import.meta.url)
   const migrations = (await readdir(directory)).filter(filename => filename.endsWith('.sql')).sort()
   for (const filename of migrations) await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))

@@ -2,6 +2,8 @@
 
 2026-10-23（Asia/Taipei）。**本次授權重試 PASS / IMPORTED AND VERIFIED**。以下先列最新結果，再保留第一次停止的歷史紀錄。
 
+**後續更新：** 使用者已另行批准並完成 [Phase 6 Cloud 15 題驗收](phase6-cloud-acceptance-report.md)。以下「未使用 15 位」為匯入時收據；QA Host 現已保留 15 筆使用歷史，新的 Host 仍有 15 位可用。沒有再次匯入／修改題庫或重置歷史。
+
 ## 本次重試結果
 
 - 使用者已明確批准修正 `--linked` 後重試原批次，目標仍為 `fgvajdnzrnptdjurhjfo`。
@@ -29,7 +31,7 @@
 
 `check:db` 保留既有已審查平台 `rls_auto_enable` event trigger 的 public EXECUTE 警告，來源與屬性符合原基準；不是本次新增，也未擅自修改平台權限。私有執行／驗證收據位於 ignored prepared 目錄，未記錄憑證或 Token。
 
-**結論：題庫匯入完成，已達政治人物分類 15 題雲端驗收的最低題庫條件。** 下一步只待使用者另行批准測試房間與主持人／玩家 QA 資料寫入，詳見 [Cloud 15 Question Acceptance](cloud-15-question-acceptance.md)。本次到此停止，不代表完整 Cloud 遊戲已通過。
+**題庫匯入階段結論：匯入完成，已達政治人物分類 15 題雲端驗收的最低題庫條件。** 當時未執行遊戲 QA；後續已在另行明確授權下驗收 PASS，以頁首新收據為準，沒有把匯入成功當成遊戲通過。
 
 ## 歷史：第一次匯入停止（21:19）
 

@@ -5,6 +5,7 @@ import { validateJoinRoom } from '../lib/validation'
 import type { Category, JoinRoomInput, LobbyState, RoomSession } from '../types/game'
 import { invokeGameApi, loadGameImage, parseGameState } from '../lib/game-api'
 import type { GameAction } from '../types/game-engine'
+import type { RealtimeTicket, RoomSnapshot } from '../types/realtime'
 
 type Api = typeof invokeRoomApi
 type Lock = <Result>(operation: () => Promise<Result>) => Promise<Result>
@@ -58,11 +59,24 @@ export function createRoomService(options: { storage?: () => StoragePort; lock?:
     store.remove('host-bootstrap')
     return identity
   }
+  const snapshot = async (code: string, data: Record<string, unknown>): Promise<RoomSnapshot> => ({ game: parseGameState(data), lobby: Array.isArray(data.players) && Array.isArray(data.categories) ? parseLobby(data) : await loadState(code) })
   return {
     pendingCreation,
     savedCodes: () => store.codes(),
     hasSession: (code: string) => !!store.getSession(code),
     getState: loadState,
+    async getSnapshot(code: string) {
+      return snapshot(code, await gameApi('get-game-state', { roomCode: code }, gameCredentials(code)))
+    },
+    async getRealtimeTicket(code: string): Promise<RealtimeTicket> {
+      const value = await api('get-realtime-ticket', { roomCode: code }, gameCredentials(code))
+      const ticket = value as unknown as RealtimeTicket
+      if (!/^gw-room:[0-9a-f-]{36}$/.test(ticket.topic) || typeof ticket.accessToken !== 'string' || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(ticket.accessToken) || ticket.accessToken.length > 2048 || !Number.isFinite(Date.parse(ticket.expiresAt)) || Date.parse(ticket.expiresAt) <= Date.now() || Date.parse(ticket.expiresAt) > Date.now() + 300000) throw new Error('即時同步授權格式錯誤。')
+      return { topic: ticket.topic, accessToken: ticket.accessToken, expiresAt: ticket.expiresAt }
+    },
+    controlSnapshot(code: string, action: GameAction, questionId?: string) {
+      return locked(async () => snapshot(code, await gameApi(action, { roomCode: code, ...(questionId ? { questionId } : {}) }, gameCredentials(code, true))))
+    },
     async getGameState(code: string) {
       const pending = gameReads.get(code)
       if (pending) return pending

@@ -1,6 +1,12 @@
 # Guess Who — Room System
 
-**Phase 5 DONE：** 已經使用者明確批准，完成 Cloud Migration、Secrets、room-system v1 與真實多人驗收，見 [Cloud Deployment Report](phase5-cloud-deployment-report.md)。隨機出題、答案、計分、歷史重置及 Realtime 不在本階段；Phase 6 目前只有準備文件。
+**Phase 5 DONE：** 已經使用者明確批准，完成 Cloud Migration、Secrets、room-system v1 與真實多人驗收，見 [Cloud Deployment Report](phase5-cloud-deployment-report.md)。Phase 6 其後已完成真正 15 題 Cloud 驗收；本機 Phase 7 新增私有 Broadcast 授權，尚未部署，見 [Realtime Report](phase7-realtime-report.md)。原有六操作與自訂憑證授權保持不變。
+
+## Phase 7 本機增量
+
+`POST /functions/v1/room-system/get-realtime-ticket` 只接受 `{roomCode}`，仍須 Publishable Key、合法 Origin、Host Credential＋Room Token 或本房 Player Session。它沿用 get-room-state 的 H-01 gate，不接受 caller 的 role／ID／scope／期限。
+
+驗證後呼叫 service_role-only `room_realtime_grant(jsonb)`，取得唯一房間／身分的五分鐘 grant，再以後端專用 ES256 key 簽發 anon-role Realtime JWT。回應只有 topic、accessToken、expiresAt，no-store；JWT 只存在記憶體，不代替任何房間操作憑證。必須另外審核並完成 Supabase 信任 signing key、`ROOM_REALTIME_SIGNING_JWK` 與增量部署，不能只設定隨機 JWK 就假設平台會接受。此操作不建立 Supabase Auth user。
 
 ## 架構
 

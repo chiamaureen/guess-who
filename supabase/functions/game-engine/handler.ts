@@ -1,5 +1,5 @@
 import { deriveToken, hashToken, validToken } from '../room-system/crypto.ts'
-import { readBody, RoomError } from '../room-system/handler.ts'
+import { readBody, RoomError, safeLobby } from '../room-system/handler.ts'
 import type { Backend, HandlerConfig, RateLimitRequest } from '../room-system/handler.ts'
 
 type Payload = Record<string, unknown>
@@ -24,8 +24,7 @@ function safeState(data: Payload, host: boolean) {
   ensure(room && viewer && ['waiting', 'playing', 'finished'].includes(String(room.status)) && room.totalQuestions === 15)
   ensure(viewer.role === (host ? 'host' : 'player') && (question === null || question && typeof question.revealed === 'boolean'))
   return {
-    room: { id: room.id, code: room.code, status: room.status, currentQuestion: room.currentQuestion, totalQuestions: 15, expiresAt: room.expiresAt },
-    viewer: { role: viewer.role, id: viewer.id },
+    ...safeLobby(data),
     question: question ? {
       id: question.id, number: question.number, revealed: question.revealed,
       ...(host || question.revealed === true ? { answer: question.answer, attribution: question.attribution ? {
