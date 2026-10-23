@@ -63,5 +63,6 @@ npm run dev
 - `npm run test:db`：在隔離的本機資料庫驗證 Schema 與權限，不連線雲端。
 - `npm run build`：檢查 TypeScript 並建置前端。
 - `npm run check:supabase`：驗證 SDK 初始化與雲端 Auth API 連線。
+- `npm run check:db`：重播隔離的本機 Schema，與已連結雲端結構進行唯讀比對。
 
 開發規範見 [AGENTS.md](AGENTS.md)，資料庫設計與 ERD 見 [Database Schema](docs/database-schema.md)，各階段驗收結果見 [docs](docs/)。

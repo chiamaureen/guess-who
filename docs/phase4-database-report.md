@@ -4,6 +4,8 @@
 規格：Database Design Specification v1.2  
 狀態：**Phase 4 Database Design 範圍已完成。經使用者明確確認，已部署至既有 Supabase Free Project，並通過真實 Cloud PostgreSQL 17.11 結構與權限驗證。未開始 Phase 5。**
 
+本文件保留初次設計／部署時的測試數量與紀錄；最新獨立驗收、完整漂移檢查與既有 RLS 事件函式警告，請參閱 [Phase 4 Final Verification](phase4-final-verification.md)。
+
 ## 1. Completed Tasks
 
 - 建立九張應用資料表 Migration、PK／FK／UNIQUE／CHECK 與查詢索引。

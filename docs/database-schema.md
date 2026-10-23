@@ -252,7 +252,7 @@ npm run build
 
 本機使用開發依賴 PGlite 0.5.11（PostgreSQL **18.6** WASM），不需 Docker／本機 PostgreSQL，也不連線遠端。模擬 Supabase 角色、過寬預設 grants、隔離 fixtures，逐項測試 PK／FK／CHECK／UNIQUE、去重與回滾、seed 可重跑、瀏覽器拒絕、FORCE RLS、service_role 與 Realtime 防護。測試 fixtures 含明確假資料，不得部署。
 
-Cloud 部署前唯讀預檢實際回報 PostgreSQL **17.11**、沒有九張應用資料表、沒有既有 migrations、service_role 有 BYPASSRLS、沒有自動 Realtime publication。經確認部署後，已在真實 PG17 驗證九表、七分類、RLS／GRANT、有效 constraints/indexes 與 Realtime 隔離。本機與雲端版本仍不同；31 項隔離資料異動測試是在 PG18 執行，不宣稱已在 Cloud 重跑，也不是多連線競爭或正式遊戲引擎驗收。
+Cloud 部署前唯讀預檢實際回報 PostgreSQL **17.11**、沒有九張應用資料表、沒有既有 migrations、service_role 有 BYPASSRLS、沒有自動 Realtime publication。經確認部署後，已在真實 PG17 驗證九表、七分類、RLS／GRANT、有效 constraints/indexes 與 Realtime 隔離。本機與雲端版本仍不同；最終驗收的 37 項資料庫／檢查工具測試是在 PG18 執行，不宣稱已在 Cloud 重跑，也不是多連線競爭或正式遊戲引擎驗收。
 
 ### 部署前後程序
 
@@ -273,3 +273,11 @@ Cloud 部署前唯讀預檢實際回報 PostgreSQL **17.11**、沒有九張應�
 `verify_schema.sql` 在 Cloud PostgreSQL 17.11 成功執行：九表 ENABLE／FORCE RLS、七分類全部啟用、只有 `categories_read_active` policy、browser／service privilege violations 為空、無失效限制或索引、trigger 無公開執行權、無應用表 Realtime 暴露。
 
 另外以真實 Publishable Key 發送唯讀 REST GET：分類 HTTP 200 且七個 slug 正確；其餘八表 HTTP 401、PostgreSQL `42501`（權限不足）。私表使用 `select=*&limit=0`，不下載答案或憑證資料；不把 404／表不存在當成安全驗證通過。
+
+### 最終驗收與漂移比對
+
+`npm run check:db` 在隔離 PGlite 重播所有 Migration，並以 `supabase/tests/schema_catalog.sql` 的 READ ONLY 查詢比對 Cloud。範圍含九表、55 欄位的型別／NULL／DEFAULT、62 個 PK／FK／UNIQUE／CHECK、31 索引、189 個角色表權限、額外欄位授權、RLS policy、trigger 定義及應用 helper 原始碼摘要。PG18 額外的 NOT NULL catalog constraint 以欄位 `attnotnull` 統一驗證，不把 PG17 缺少該類 catalog row 當成漂移。
+
+Cloud 另有不在應用 Migration 內的 `public.rls_auto_enable()`／`ensure_rls`。已審查其 event_trigger 型別、postgres 擁有者、固定 `search_path=pg_catalog`、原始碼摘要與只啟用 RLS 的 DDL 事件用途；不是可直接當一般函式使用的答案 RPC。anon／authenticated 雖有 EXECUTE，但無 public schema CREATE。此為已知非阻斷警告，不宣稱 Cloud 完全沒有 SECURITY DEFINER 函式。檢查工具只接受本次審查過的精確摘要及設定，其他額外函式或原始碼異動會失敗；沒有修改平台函式。
+
+最新結果、非阻斷警告、可選的收斂授權草案與 Phase 5 Gate 見 [Final Verification Report](phase4-final-verification.md)。

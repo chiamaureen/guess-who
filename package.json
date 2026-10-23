@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run && node --test scripts/check-supabase.node-test.mjs && npm run test:db",
     "test:db": "node --test supabase/tests/database.node-test.mjs",
-    "check:supabase": "node scripts/check-supabase.mjs"
+    "check:supabase": "node scripts/check-supabase.mjs",
+    "check:db": "node scripts/check-database-schema.mjs --linked"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

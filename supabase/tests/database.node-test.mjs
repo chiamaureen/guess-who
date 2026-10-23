@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { before, after, beforeEach, afterEach, test } from 'node:test'
 import { readFile, readdir } from 'node:fs/promises'
 import { PGlite } from '@electric-sql/pglite'
+import { differencePaths, isReviewedPlatformFunction, withoutTransaction } from '../../scripts/check-database-schema.mjs'
 
 const names = ['categories', 'celebrities', 'celebrity_categories', 'hosts', 'rooms', 'room_categories', 'room_players', 'room_questions', 'host_question_history']
 const firstColumns = { categories: 'id', celebrities: 'id', celebrity_categories: 'celebrity_id', hosts: 'id', rooms: 'id', room_categories: 'room_id', room_players: 'id', room_questions: 'id', host_question_history: 'id' }
@@ -92,8 +93,8 @@ test('names, image source, author, license, attribution and HTTPS are required',
 test('approval defaults to false and updated_at is maintained by a trigger', async () => {
   const inserted = (await database.query(`INSERT INTO public.celebrities (name_zh, subject_type, image_url, image_source, image_author, image_license, image_attribution) VALUES ('測試', 'fictional_character', 'https://assets.invalid/opaque.webp', 'https://source.invalid/test', 'author', 'license', 'attribution') RETURNING id, is_approved`)).rows[0]
   assert.equal(inserted.is_approved, false)
-  await database.query('UPDATE public.celebrities SET name_en = $1 WHERE id = $2', ['Fixture', inserted.id])
-  assert.equal(await scalar('SELECT updated_at > created_at FROM public.celebrities WHERE id = $1', [inserted.id]), true)
+  await database.query("UPDATE public.celebrities SET name_en = $1, updated_at = created_at - interval '1 day' WHERE id = $2", ['Fixture', inserted.id])
+  assert.equal(await scalar('SELECT updated_at >= created_at FROM public.celebrities WHERE id = $1', [inserted.id]), true)
 })
 
 test('many-to-many membership is unique and foreign keys reject missing identities', async () => {
@@ -268,4 +269,86 @@ test('the read-only deployment verification SQL checks actual browser roles and 
   assert.equal(report.service_privilege_violations.length, 0)
   assert.equal(report.invalid_constraints.length, 0)
   assert.equal(report.realtime_exposed_tables.length, 0)
+})
+
+test('a room with 15 questions cannot accept a sixteenth question or another copy of a position', async () => {
+  await database.query(`INSERT INTO public.room_questions (room_id, question_number, category_id, celebrity_id) SELECT $1, subject_number, $2, ('40000000-0000-4000-8000-' || lpad(subject_number::text, 12, '0'))::uuid FROM generate_series(2, 15) AS subjects(subject_number)`, [room, actor])
+  await database.exec('SET CONSTRAINTS ALL IMMEDIATE')
+  assert.equal(await scalar('SELECT count(*)::int FROM public.room_questions WHERE room_id = $1', [room]), 15)
+  await rejectsSQL(`INSERT INTO public.room_questions (room_id, question_number, category_id, celebrity_id) VALUES ('${room}', 16, '${actor}', '40000000-0000-4000-8000-000000000016')`, '23514')
+  await rejectsSQL(`INSERT INTO public.room_questions (room_id, question_number, category_id, celebrity_id) VALUES ('${room}', 15, '${actor}', '40000000-0000-4000-8000-000000000016')`, '23505')
+})
+
+test('database-only deterministic three-room fixture stores 45 distinct subjects, not a game-engine E2E test', async () => {
+  await database.exec(`
+    INSERT INTO public.celebrities (id, name_zh, subject_type, image_url, image_source, image_author, image_license, image_attribution, is_approved)
+    SELECT ('60000000-0000-4000-8000-' || lpad(subject_number::text, 12, '0'))::uuid, '三場測試' || subject_number::text, 'fictional_character', 'https://assets.invalid/opaque.webp', 'https://source.invalid/fixture', 'Fixture author', 'Fixture license', 'Fixture attribution', true
+    FROM generate_series(1, 45) AS subjects(subject_number);
+    INSERT INTO public.celebrity_categories (celebrity_id, category_id)
+    SELECT subjects.id, categories.id FROM public.celebrities AS subjects CROSS JOIN public.categories AS categories
+    WHERE subjects.id::text LIKE '60000000-%' AND categories.slug IN ('actors', 'singers');
+  `)
+  for (const gameNumber of [1, 2, 3]) {
+    const gameId = `70000000-0000-4000-8000-${String(gameNumber).padStart(12, '0')}`
+    await database.query('INSERT INTO public.rooms (id, room_code, host_id, host_token_hash) VALUES ($1, $2, $3, $4)', [gameId, `GAME0${gameNumber}`, host, String(gameNumber + 3).repeat(64)])
+    await database.query('INSERT INTO public.room_categories SELECT $1, id FROM public.categories WHERE slug IN ($2, $3)', [gameId, 'actors', 'singers'])
+    await database.query(`INSERT INTO public.room_questions (room_id, question_number, category_id, celebrity_id) SELECT $1, question_number, CASE WHEN question_number % 2 = 0 THEN $2::uuid ELSE $3::uuid END, ('60000000-0000-4000-8000-' || lpad((question_number + $4::int)::text, 12, '0'))::uuid FROM generate_series(1, 15) AS questions(question_number)`, [gameId, actor, singer, (gameNumber - 1) * 15])
+    await database.query('INSERT INTO public.host_question_history (host_id, celebrity_id, first_room_id) SELECT $1, celebrity_id, room_id FROM public.room_questions WHERE room_id = $2', [host, gameId])
+    await database.query("UPDATE public.rooms SET status = 'finished', current_question = 15, started_at = now(), ended_at = now() WHERE id = $1", [gameId])
+  }
+  await database.exec('SET CONSTRAINTS ALL IMMEDIATE')
+  const counts = (await database.query("SELECT count(*)::int AS questions, count(DISTINCT celebrity_id)::int AS subjects FROM public.room_questions WHERE room_id::text LIKE '70000000-%'")).rows[0]
+  assert.deepEqual(counts, { questions: 45, subjects: 45 })
+  assert.equal(await scalar("SELECT count(*)::int FROM public.host_question_history WHERE host_id = $1 AND celebrity_id::text LIKE '60000000-%'", [host]), 45)
+})
+
+test('database-only history reset permits a subject in a new room without erasing the old question', async () => {
+  await database.query("UPDATE public.rooms SET status = 'finished', ended_at = clock_timestamp() WHERE id = $1", [room])
+  await database.query('DELETE FROM public.host_question_history WHERE host_id = $1', [host])
+  await database.query('INSERT INTO public.room_questions (room_id, question_number, category_id, celebrity_id) VALUES ($1, 1, $2, $3)', [nextRoom, actor, subject])
+  await database.query('INSERT INTO public.host_question_history (host_id, celebrity_id, first_room_id) VALUES ($1, $2, $3)', [host, subject, nextRoom])
+  await database.exec('SET CONSTRAINTS ALL IMMEDIATE')
+  assert.equal(await scalar('SELECT count(*)::int FROM public.room_questions WHERE celebrity_id = $1', [subject]), 2)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.host_question_history WHERE host_id = $1 AND celebrity_id = $2', [host, subject]), 1)
+})
+
+test('schema alone does not implement the future engine or automatic per-question history writing', async () => {
+  await database.query('INSERT INTO public.room_questions (room_id, question_number, category_id, celebrity_id) VALUES ($1, 1, $2, $3)', [nextRoom, actor, secondSubject])
+  await database.exec('SET CONSTRAINTS ALL IMMEDIATE')
+  assert.equal(await scalar('SELECT count(*)::int FROM public.host_question_history WHERE host_id = $1 AND celebrity_id = $2', [host, secondSubject]), 0)
+  assert.equal(await scalar('SELECT current_question FROM public.rooms WHERE id = $1', [nextRoom]), 0)
+  await database.query("UPDATE public.rooms SET status = 'finished', ended_at = clock_timestamp() WHERE id = $1", [room])
+  await database.query("UPDATE public.rooms SET status = 'playing', ended_at = NULL WHERE id = $1", [room])
+  assert.equal(await scalar('SELECT status FROM public.rooms WHERE id = $1', [room]), 'playing')
+})
+
+test('catalog comparison covers columns, constraints, indexes, grants, policies and trigger source without exposing rows', async () => {
+  const results = await database.exec(withoutTransaction(await readFile(new URL('./schema_catalog.sql', import.meta.url), 'utf8')))
+  const catalog = results.at(-1).rows[0].catalog
+  assert.equal(catalog.schema.tables.length, 9)
+  assert.equal(catalog.schema.constraints.filter(constraint => constraint.type === 'p').length, 9)
+  assert.equal(catalog.schema.table_privileges.length, 189)
+  assert.deepEqual(catalog.schema.unexpected_column_grants, [])
+  assert.deepEqual(catalog.schema.public_table_grants, [])
+  assert.deepEqual(catalog.public_views, [])
+  assert.equal(catalog.public_functions.length, 1)
+  assert.equal(catalog.schema.helper.security_definer, false)
+  assert.equal(catalog.schema.helper.anon_execute, false)
+  assert.equal(catalog.schema.helper.authenticated_execute, false)
+  const changed = structuredClone(catalog.schema)
+  changed.columns[0].not_null = !changed.columns[0].not_null
+  changed.constraints[0].definition = 'unexpected definition'
+  changed.indexes[0].valid = false
+  changed.helper.source_md5 = 'changed'
+  assert.deepEqual(differencePaths(catalog.schema, changed), ['schema.columns.0.not_null', 'schema.constraints.0.definition', 'schema.helper.source_md5', 'schema.indexes.0.valid'])
+  assert.deepEqual(differencePaths(catalog.schema, JSON.parse(JSON.stringify(catalog.schema))), [])
+})
+
+test('platform event-trigger exception requires reviewed source, type, owner, search_path and trigger configuration', () => {
+  const reviewed = { name: 'rls_auto_enable', arguments: '', return_type: 'event_trigger', owner: 'postgres', security_definer: true, source_md5: 'c44fb229ea8a6b0afd04a0a33261c16c', config: ['search_path=pg_catalog'], event_triggers: [{ name: 'ensure_rls', event: 'ddl_command_end', enabled: 'O', tags: ['CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO'] }] }
+  assert.equal(isReviewedPlatformFunction(reviewed), true)
+  assert.equal(isReviewedPlatformFunction({ ...reviewed, event_triggers: [{ enabled: 'O', event: 'ddl_command_end', name: 'ensure_rls', tags: ['CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO'] }] }), true)
+  for (const change of [{ name: 'unreviewed' }, { arguments: 'sql text' }, { return_type: 'jsonb' }, { owner: 'anon' }, { security_definer: false }, { source_md5: 'modified' }, { config: ['search_path=public'] }, { event_triggers: [] }]) {
+    assert.equal(isReviewedPlatformFunction({ ...reviewed, ...change }), false)
+  }
 })

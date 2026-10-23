@@ -37,6 +37,7 @@
 - `.env.local`、CLI `.temp`／`.branches` 與憑證必須忽略；CLI 登入和密碼由使用者在自己的互動終端機處理，不寫入命令參數或 Repository。
 - `npm run check:supabase` 只驗證初始化與真實 HTTP 200 Health Response，不代表 PostgreSQL 驗證。缺設定為 BLOCKED、請求或回應失敗為 FAIL。
 - `npm run test:db` 使用隔離的 PGlite 執行 SQL／角色測試，不連雲端、不需要 Docker。必須記錄其 PostgreSQL 版本與 Cloud 版本差異；本機 PASS 不代表 Cloud 已部署或多連線併發測試通過。部署後使用 `supabase/tests/verify_schema.sql` 唯讀驗證。
+- 最終驗收僅允許 Cloud 唯讀 SQL／GET 與 migration dry-run，禁止對 linked Cloud 執行任何測試資料異動。`npm run check:db` 比對欄位、限制、索引、GRANT、RLS 與 trigger；既有 `rls_auto_enable` 事件函式必須按已審查來源摘要、型別、擁有者與 search_path 驗證，不能忽略任意額外 SECURITY DEFINER 函式。詳見 `docs/phase4-final-verification.md`。
 - TypeScript strict，採可維護元件；共用 Loading / Error / Empty State，支援手機、鍵盤及桌面。
 - 視覺參考 https://about.miroom.com/：黑白、大字留白、螢光黃綠與鮮明色塊；沿用原創素材，不複製品牌資產。
 - `VITE_` 環境變數均為公開資訊，不可存放任何私密憑證。
