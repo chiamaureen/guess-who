@@ -40,7 +40,7 @@ export function CreateRoomPage() {
       <p className="page-description">
         你來當主持人！選擇喜歡的人物分類，讓每一題都有驚喜。
       </p>
-      <p className="mock-label">分類來自 Supabase · 本階段開放等待室，遊戲尚未開放</p>
+      <p className="mock-label">分類來自 Supabase · 遊戲需要後端引擎與足夠的已審核題庫</p>
       {savedCodes.length > 0 && <div className="saved-rooms"><p>繼續已保存的房間：</p>{savedCodes.map(code => <Link key={code} to={`/room/${code}`}>{code} ↗</Link>)}</div>}
       {pending && <p className="feedback" role="status">上次建立結果尚待確認，重試會沿用原分類與請求，不會另開房間。</p>}
       {loading && <p className="feedback" role="status">正在讀取分類…</p>}
@@ -93,7 +93,7 @@ export function CreateRoomPage() {
             <strong>已選 {selected.length} 個分類</strong>
             <span>
               每場固定 {QUESTIONS_PER_GAME} 題 ·
-              等待室不會開始出題，遊戲引擎將於下一階段開放
+              進入等待室後由主持人開始，人物跨場不重複
             </span>
           </p>
           <MagneticButton

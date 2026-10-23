@@ -10,11 +10,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run && node --test scripts/check-supabase.node-test.mjs && npm run test:db && npm run test:rooms && npm run check:edge",
+    "test": "vitest run && node --test scripts/check-supabase.node-test.mjs && npm run test:db && npm run test:rooms && npm run test:game && npm run check:edge",
     "test:db": "node --test supabase/tests/database.node-test.mjs",
     "check:supabase": "node scripts/check-supabase.mjs",
     "check:db": "node scripts/check-database-schema.mjs --linked",
     "test:rooms": "node --test supabase/tests/room-system.node-test.mjs",
+    "test:game": "node --test supabase/tests/game-engine.node-test.mjs",
     "check:edge": "tsc -p tsconfig.edge.json"
   },
   "dependencies": {

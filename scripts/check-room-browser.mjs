@@ -23,8 +23,14 @@ if (chromium) {
   let roomCode
   let invite
   let firstStateRequestAt
+  let readRequests = 0
   const redact = message => message.replace(/(?:gw_(?:host|room|player)|sb_publishable|sb_secret|sbp)_[A-Za-z0-9_-]+/g, '[REDACTED]')
   async function check(name, operation) {
+    if (readRequests >= 20) {
+      const wait = Math.max(0, 61000 - (Date.now() - firstStateRequestAt))
+      if (wait) await new Promise(resolve => setTimeout(resolve, wait))
+      readRequests = 0; firstStateRequestAt = Date.now()
+    }
     try { await operation(); checks.push({ name, result: 'PASS' }) }
     catch (error) { checks.push({ name, result: 'FAIL', details: redact(error.message) }); throw new Error(`Browser verification stopped at ${name}`) }
   }
@@ -40,8 +46,8 @@ if (chromium) {
         if (categoryMode === 'error') return route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"fixture unavailable"}' })
         return route.fulfill({ response: await route.fetch({ url: `${fixture}/categories`, headers: { origin } }) })
       }
-      if (url.pathname.startsWith('/functions/v1/room-system/')) {
-        if (url.pathname.endsWith('/get-room-state') && firstStateRequestAt === undefined) firstStateRequestAt = Date.now()
+      if (/^\/functions\/v1\/(room-system|game-engine)\//.test(url.pathname)) {
+        if (/\/(get-room-state|get-game-state|get-question-image)$/.test(url.pathname)) { readRequests++; if (firstStateRequestAt === undefined) firstStateRequestAt = Date.now() }
         const headers = { ...request.headers(), origin, apikey: 'sb_publishable_fixture', 'x-forwarded-for': `fixture-${label}` }
         delete headers.authorization
         const response = await route.fetch({ url: `${fixture}${url.pathname}`, headers })
@@ -102,10 +108,11 @@ if (chromium) {
       await host.getByRole('button', { name: '複製邀請連結' }).click()
       await host.getByText('邀請連結已複製。').waitFor()
     })
-    await check('host refresh restores server-authorized control, no fake start action', async () => {
+    await check('host refresh restores control; real game start rejects an empty corpus without fake success', async () => {
       await host.reload()
       await host.getByRole('heading', { name: '朋友，快來集合！' }).waitFor()
-      assert.equal(await host.getByRole('button', { name: '開始遊戲（尚未開放）' }).isDisabled(), true)
+      await host.getByRole('button', { name: '開始遊戲', exact: true }).click()
+      await host.getByRole('alert').filter({ hasText: '可用人物不足 15 位' }).waitFor()
       assert.equal((await stats()).hosts, 1)
     })
     await check('invitation opens nickname form without creating a host or player', async () => {
@@ -162,10 +169,6 @@ if (chromium) {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'horizontal overflow')
           if ([375, 1440].includes(width)) await page.screenshot({ path: `${artifacts}/${name}-${width}.png`, fullPage: true })
         })
-      }
-      if (width === 375) {
-        const sharedSourceWait = Math.max(0, 61000 - (Date.now() - firstStateRequestAt))
-        if (sharedSourceWait) await new Promise(resolve => setTimeout(resolve, sharedSourceWait))
       }
     }
     await check('player can leave without deleting the room or another player', async () => {

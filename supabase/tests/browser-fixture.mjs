@@ -3,8 +3,10 @@ import { readFile, readdir } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
 import { createRoomHandler, RoomError } from '../functions/room-system/handler.ts'
+import { createGameHandler } from '../functions/game-engine/handler.ts'
+import { gameDraft, seedGameFixtures } from './game-fixture.mjs'
 
-export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.0.1:5177' } = {}) {
+export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.0.1:5177', gamePeople = 0 } = {}) {
   const database = new PGlite()
   await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;')
   const directory = new URL('../migrations/', import.meta.url)
@@ -12,16 +14,19 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
   for (const filename of migrations) await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))
   if (!migrations.includes('20261023093000_room_system.sql')) await database.transaction(async transaction => transaction.exec(await readFile(new URL('../migration-drafts/20261023093000_room_system.sql', import.meta.url), 'utf8')))
   await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))
+  await database.exec(await readFile(gameDraft, 'utf8'))
+  if (gamePeople) await seedGameFixtures(database, gamePeople)
   const signingKey = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')
   const rpc = (name, parameters) => database.transaction(async transaction => {
     await transaction.exec('SET LOCAL ROLE service_role')
     try {
-      const sql = name === 'action' ? 'SELECT public.room_system_action($1, $2::jsonb) AS result' : 'SELECT public.room_system_rate_limit($1::jsonb) AS result'
-      const values = name === 'action' ? [parameters.action, JSON.stringify(parameters.input)] : [JSON.stringify(parameters)]
+      const sql = name === 'rate' ? 'SELECT public.room_system_rate_limit($1::jsonb) AS result' : `SELECT public.${name === 'game' ? 'game_engine_action' : 'room_system_action'}($1, $2::jsonb) AS result`
+      const values = name === 'rate' ? [JSON.stringify(parameters)] : [parameters.action, JSON.stringify(parameters.input)]
       return (await transaction.query(sql, values)).rows[0].result
     } catch (error) { throw new RoomError(error.code === 'P0001' ? error.message : 'INTERNAL_ERROR') }
   })
   const handler = createRoomHandler({ origins: [origin], publishableKeys: ['sb_publishable_fixture'], signingKey }, { rateLimit: scopes => rpc('rate', scopes), action: (action, input) => rpc('action', { action, input }) })
+  const gameHandler = createGameHandler({ origins: [origin], publishableKeys: ['sb_publishable_fixture'], signingKey }, { rateLimit: scopes => rpc('rate', scopes), action: (action, input) => rpc('game', { action, input }) })
   const server = createServer(async (incoming, outgoing) => {
     try {
       const url = new URL(incoming.url, `http://127.0.0.1:${port}`)
@@ -46,9 +51,9 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
       const headers = new Headers()
       for (const [name, value] of Object.entries(incoming.headers)) if (value) headers.set(name, Array.isArray(value) ? value.join(',') : value)
       const request = new Request(url, { method: incoming.method, headers, body: ['GET', 'HEAD'].includes(incoming.method) ? undefined : body })
-      const response = await handler(request, { sourceAddress: incoming.socket.remoteAddress })
+      const response = await (url.pathname.includes('/game-engine/') ? gameHandler : handler)(request, { sourceAddress: incoming.socket.remoteAddress })
       outgoing.writeHead(response.status, Object.fromEntries(response.headers))
-      outgoing.end(await response.text())
+      outgoing.end(Buffer.from(await response.arrayBuffer()))
     } catch { outgoing.writeHead(500); outgoing.end('{"error":{"code":"FIXTURE_ERROR"}}') }
   })
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve) })

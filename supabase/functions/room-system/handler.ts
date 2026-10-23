@@ -53,7 +53,7 @@ function nickname(value: unknown) {
   return normalized
 }
 
-async function readBody(request: Request): Promise<Payload> {
+export async function readBody(request: Request): Promise<Payload> {
   assertInput(request.headers.get('content-type')?.split(';')[0].trim() === 'application/json')
   const reader = request.body?.getReader()
   assertInput(reader)

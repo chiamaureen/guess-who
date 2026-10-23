@@ -418,3 +418,7 @@ enabled = true
 [functions.room-system]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+[functions.game-engine]
+verify_jwt = false
+import_map = "./functions/deno.json"

@@ -1,6 +1,6 @@
 # Guess Who — Database Schema
 
-依據 Phase 4 Database Design Specification **v1.2**。本文件描述資料完整性與後續功能設計；房間 API、身分驗證、抽題引擎、重置及 Realtime 尚未實作。
+依據 Phase 4 Database Design Specification **v1.2**。第 1–8 節保留 Phase 4 baseline／當時的後續設計；第 9 節為已部署 Phase 5，第 10 節為 Phase 6 本機增量。房間已上雲，遊戲引擎已本機實作但未部署，Realtime 尚未實作。
 
 ## 1. 架構與範圍
 
@@ -298,3 +298,16 @@ Cloud 另有不在應用 Migration 內的 `public.rls_auto_enable()`／`ensure_r
 本機以原九表加草案驗證十表權限；Phase 4 的 `test:db` 保留已部署 baseline，Phase 5 的 `test:rooms` 驗證合併後結構與交易。沒有修改題庫、room_questions、host_question_history 或實作遊戲引擎。
 
 實際部署、唯讀權限驗證、真實 API／多人結果與留存 QA 資料見 [Phase 5 Cloud Report](phase5-cloud-deployment-report.md)。後續僅新增經批准的增量，不重跑本次部署或擅自清理測試資料；詳細生命週期見 [Room System](room-system.md)。
+
+## 10. Phase 6 Game Engine 增量（僅本機待審）
+
+`supabase/migration-drafts/20261023120000_game_engine.sql` 不在 CLI 自動部署目錄。已部署兩個 Migration 不變；正式 Cloud 仍為第 9 節的十表／三 RPC，不能以本機結果宣稱已更新 Cloud。
+
+- 新私有表 `game_image_assets(id, celebrity_id, png, is_approved, created_at)`，`UNIQUE(id,celebrity_id)`、人物 FK 與 PNG 格式 CHECK；ENABLE／FORCE RLS，無 policy，browser 無任何表權限，service_role 僅 SELECT／INSERT／DELETE（不可 UPDATE 圖片）。
+- `room_questions.game_image_id uuid NULL`：允許既有資料不被破壞；新引擎每次出題必填，複合 FK `(game_image_id,celebrity_id)` 保證同人物安全圖片，RESTRICT 保留已出題圖片。
+- 新函式 `game_engine_png_valid(bytea)`、`game_engine_state(uuid,text,uuid)`、`game_engine_action(text,jsonb)`：全為 SECURITY INVOKER、空 search_path、service_role-only EXECUTE；第一個是 CHECK helper，第二個是私有 DTO helper，對 Edge 的主要 RPC 是第三個。
+- 新表套用後為十一表；不變更原 PK／UNIQUE／C 模式歷史 FK，不新增公開 View／SELECT policy／Realtime publication。
+- 原始 `celebrities.image_url` 不作為玩家圖片 URL；只有事先清除 Metadata、可解碼且授權允許呈現的已審核 asset 才可入選，Phase 8 匯入仍待實作。
+- Host→Room 列鎖與單一 RPC 交易保護單房開始／抽題／揭曉／結束。Next 以原題 UUID 防重送；歷史重置鎖同 Host，明確確認且核對 revision，無 playing 才刪自己的 history，保留題目與其他 Host 紀錄。不設全域單房限制或多房調度機制。
+
+驗證 SQL：`supabase/tests/verify_game_engine.sql` 是 READ ONLY catalog 檢查，已在隔離資料庫測試，尚未對 Cloud 執行。完整 API／圖片邊界見 [Game Engine](game-engine.md)，實際測試與部署阻礙見 [Phase 6 Report](phase6-game-engine-report.md)。

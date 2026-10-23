@@ -3,17 +3,21 @@ import { browserSessionLock, browserStorage, randomRequestKey, sessionStore } fr
 import type { StoragePort } from '../lib/room-storage'
 import { validateJoinRoom } from '../lib/validation'
 import type { Category, JoinRoomInput, LobbyState, RoomSession } from '../types/game'
+import { invokeGameApi, loadGameImage, parseGameState } from '../lib/game-api'
+import type { GameAction } from '../types/game-engine'
 
 type Api = typeof invokeRoomApi
 type Lock = <Result>(operation: () => Promise<Result>) => Promise<Result>
 type HostIdentity = { hostId: string; credential: string }
 type PendingCreation = { requestKey: string; categoryIds: string[] }
 
-export function createRoomService(options: { storage?: () => StoragePort; lock?: Lock; api?: Api } = {}) {
+export function createRoomService(options: { storage?: () => StoragePort; lock?: Lock; api?: Api; gameApi?: typeof invokeGameApi; imageApi?: typeof loadGameImage } = {}) {
   const store = sessionStore(options.storage ?? browserStorage)
   const locked = options.lock ?? browserSessionLock
   const api = options.api ?? invokeRoomApi
+  const gameApi = options.gameApi ?? invokeGameApi
   let creation: Promise<LobbyState> | undefined
+  const gameReads = new Map<string, Promise<ReturnType<typeof parseGameState>>>()
   const hostIdentity = (): HostIdentity | undefined => {
     const value = store.read('host') as HostIdentity | undefined
     if (value === undefined) return undefined
@@ -36,6 +40,11 @@ export function createRoomService(options: { storage?: () => StoragePort; lock?:
     if (!session) throw new RoomApiError('UNAUTHORIZED', 401, '尚未加入這個房間。')
     return parseLobby(await api('get-room-state', { roomCode: code }, credentials(session)))
   }
+  const gameCredentials = (code: string, hostOnly = false) => {
+    const session = store.getSession(code)
+    if (!session || hostOnly && session.role !== 'host') throw new RoomApiError('FORBIDDEN', 403, '只有主持人可以控制遊戲。')
+    return credentials(session)
+  }
   const ensureHost = async () => {
     const existing = hostIdentity()
     if (existing) return existing
@@ -54,6 +63,26 @@ export function createRoomService(options: { storage?: () => StoragePort; lock?:
     savedCodes: () => store.codes(),
     hasSession: (code: string) => !!store.getSession(code),
     getState: loadState,
+    async getGameState(code: string) {
+      const pending = gameReads.get(code)
+      if (pending) return pending
+      const request = gameApi('get-game-state', { roomCode: code }, gameCredentials(code)).then(parseGameState).finally(() => { gameReads.delete(code) })
+      gameReads.set(code, request)
+      return request
+    },
+    controlGame(code: string, action: GameAction, questionId?: string) {
+      return locked(async () => parseGameState(await gameApi(action, { roomCode: code, ...(questionId ? { questionId } : {}) }, gameCredentials(code, true))))
+    },
+    getGameImage(code: string, questionId: string) {
+      return (options.imageApi ?? loadGameImage)(code, questionId, gameCredentials(code))
+    },
+    resetHistory(code: string, historyRevision: string, confirm: boolean) {
+      return locked(async () => {
+        if (!confirm) throw new Error('請明確確認重置歷史。')
+        const headers = gameCredentials(code, true)
+        await gameApi('reset-question-history', { confirm: true, historyRevision }, { 'x-host-credential': headers['x-host-credential'] })
+      })
+    },
     async categories(): Promise<Category[]> {
       const { getSupabaseClient } = await import('../lib/supabase')
       const { data, error } = await getSupabaseClient().from('categories').select('id,name,slug').eq('is_active', true).order('slug')

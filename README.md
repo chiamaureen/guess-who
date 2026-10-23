@@ -25,16 +25,16 @@
 | 題庫來源 | Wikidata、Wikimedia Commons |
 | 前端託管 | GitHub Pages |
 
-前端負責畫面與操作；伺服器負責遊戲狀態、隨機出題與主持人權限。玩家在揭曉前不能取得正確姓名，未來透過資料隔離、RLS 與伺服器授權保護答案。
+前端負責畫面與操作；伺服器負責遊戲狀態、隨機出題與主持人權限。房間與遊戲引擎分為獨立 Edge Functions，透過資料隔離、RLS 與伺服器授權保護答案；圖片透過私有入口提供，不公開原始檔名。
 
-**目前進度：** Phase 5 已完成 Supabase 雲端部署與真實多人驗收，可建立／加入房間、恢復匿名身分及使用等待室。Phase 6 遊戲引擎已開始設計準備；正式出題、Realtime 與 GitHub Pages 發布尚未完成，目前不是可完整遊玩的遊戲。
+**目前進度：** Phase 5 房間系統已部署並完成雲端多人驗收。Phase 6 單房遊戲引擎已完成本機實作，包含 15 題流程、答案隔離及跨場去重，尚待審核部署與正式題庫。現在以手動更新題目驗證流程；Realtime 與 GitHub Pages 發布仍待後續階段。
 
 ## 專案結構
 
 ```text
 src/
-  pages/        首頁、建立房間、加入房間與等待室
-  components/   共用元件與互動效果
+  pages/        首頁、建立房間、加入房間與房間頁
+  components/   遊戲面板、共用元件與互動效果
   hooks/        共用狀態與互動邏輯
   services/     房間 API、分類讀取與 Session 管理
   lib/          Supabase Client、設定與驗證工具
@@ -61,9 +61,10 @@ npm run dev
 - `npm test`：執行自動化測試。
 - `npm run test:db`：在隔離的本機資料庫驗證 Schema 與權限，不連線雲端。
 - `npm run test:rooms`：驗證房間 API、匿名身分、權限與待審 SQL，不連線雲端。
+- `npm run test:game`：以隔離題庫驗證遊戲交易、答案隔離及跨場歷史，不連線雲端。
 - `npm run check:edge`：檢查 Edge Function TypeScript。
 - `npm run build`：檢查 TypeScript 並建置前端。
 - `npm run check:supabase`：驗證 SDK 初始化與雲端 Auth API 連線。
 - `npm run check:db`：重播隔離的本機 Schema，與已連結雲端結構進行唯讀比對。
 
-開發規範見 [AGENTS.md](AGENTS.md)，架構與 ERD 見 [Database Schema](docs/database-schema.md)，房間生命週期見 [Room System](docs/room-system.md)，最新結果見 [Phase 5 Cloud Report](docs/phase5-cloud-deployment-report.md)，下一階段見 [Phase 6 Preparation](docs/phase6-game-engine-preparation.md)。
+開發規範見 [AGENTS.md](AGENTS.md)，架構見 [Database Schema](docs/database-schema.md)、[Room System](docs/room-system.md) 與 [Game Engine](docs/game-engine.md)。驗收紀錄見 [Phase 5 Cloud Report](docs/phase5-cloud-deployment-report.md) 與 [Phase 6 Report](docs/phase6-game-engine-report.md)。

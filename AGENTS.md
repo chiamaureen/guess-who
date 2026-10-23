@@ -23,7 +23,7 @@
 ## 工作規範
 - Phase 5 Room System 已完成本機與 Cloud 驗收：匿名 Host、建立／加入、等待室、Session 恢復／離開／關閉；保留既有視覺／RWD，不重複開發已完成的功能。
 - 使用者已明確批准並完成本次限定 Cloud 部署：ref fgvajdnzrnptdjurhjfo、唯一 Phase 5 Migration、兩個自訂 Secrets、room-system v1 與可辨識 QA 新資料。這不是後續變更的永久授權；新 Cloud 寫入／部署需另批准，仍不 Commit／Push 或發布 GitHub Pages。
-- 依要求已準備 `docs/phase6-game-engine-preparation.md`；目前只有 Phase 6 設計／測試清單，不代表抽題、揭曉或重置已實作。Phase 7 Realtime、Phase 8 題庫及 Phase 9 正式發布尚未開始。
+- Phase 6 單房引擎已完成本機實作，見 `docs/game-engine.md`／`docs/phase6-game-engine-report.md`；尚未部署 Cloud。此階段只用本對話，不使用 Subagents／Worktree，不加入多房協調或限制資料庫只能存一房。Phase 7 Realtime、Phase 8 正式題庫及 Phase 9 發布尚未開始。
 - 實際 `supabase db push` 必須取得使用者明確確認；不得以任務授權或 sandbox 指令核准代替部署確認。部署前檢查目標 Project、既有資料、Migration history、SQL 與權限；已部署 Migration 不可修改，只能新增增量 Migration。
 - `20261023060000_create_guess_who_schema.sql` 與 `20261023093000_room_system.sql` 均已於 2026-10-23 經使用者確認部署，禁止改寫；後者 digest 為 d4917bd4d103b537a575e87d78e100dda4bf71b0b3865525b3b26954f76ad10f。十表／三 RPC／RLS／GRANT 已驗證，不代表 Phase 6 引擎已實作。
 - 不執行 `supabase start`、`supabase db reset`、`supabase db pull`、破壞性清除、強制 Migration repair 或自行刪除既有資料；不啟用付費資源，不自動 Commit／Push。
@@ -31,9 +31,12 @@
 - 所有應用表 ENABLE／FORCE RLS。瀏覽器角色只能 SELECT 啟用分類；其他表預設拒絕，不以 `auth.uid()` 當匿名主持人身分。service_role 只有明確的資料操作權限，Edge Functions 仍須先驗證匿名憑證與房間控制權。
 - Host 長期憑證、單房間 Host Token、玩家 Session 分離，以用途分離 SHA-256 hex hash 存 DB。瀏覽器 localStorage 保存 bearer 憑證，Web Locks 序列化跨分頁首次建立；不得把身分、Token 放在邀請 URL、log 或分析資料。
 - `room-system` 單一 Edge Function 提供六個 action。`verify_jwt=false` 不是授權：仍須驗證執行環境的 Publishable Key、Host／Room／Player 憑證、來源與限流，禁止信任 Host ID／Player ID／前端 role。
-- 建立房間與分類同交易；requestKey／joinKey 的失敗重試沿用原資料，網路錯誤不得自動清除憑證。等待室名單只手動更新、五秒 cooldown，沒有輪詢或 Realtime；開始遊戲按鈕禁用。
+- 建立房間與分類同交易；requestKey／joinKey 的失敗重試沿用原資料，網路錯誤不得自動清除憑證。等待室及遊戲只手動更新、五秒 cooldown，沒有輪詢或 Realtime；Start 經真實遊戲 API，不做 Mock fallback，缺部署／題庫必須明確失敗。
 - `ROOM_SYSTEM_SIGNING_KEY` 與 `ROOM_SYSTEM_ALLOWED_ORIGINS` 僅限 Edge 後端設定；新 API Keys 優先讀取執行環境 `SUPABASE_SECRET_KEYS`／`SUPABASE_PUBLISHABLE_KEYS`，不把後端 Secrets 放進 VITE。跨站 Cookie 不是此 MVP 的身分恢復保證。
-- Phase 6 須以同一 Host 鎖序列化跨房間抽題、開始與歷史重置；題目、歷史及進度必須在同一交易提交。重置須二次確認、只清自己的歷史、無 playing 房間，不刪除 room_questions；禁止自動重置或重複舊題。
+- Phase 6 單房寫入固定先鎖驗證後的 Host、再鎖 Room，Host 鎖只沿用既有順序並防 reset 與抽題競態，不加入多房調度。題目、歷史及進度同交易；Next 綁定原 questionId，重送不可多前進。重置須二次確認與原 historyRevision、只清自己的歷史、無 playing 房間（含過期尚未結束者），不刪除 room_questions。
+- 新增 `game-engine` Function，沿用 Phase 5 signing key／origins／H-01 gate；state／image 共用 get-room-state 限流，修改共用 close-room 限流，不接受任意 scope。七個 action 包含私有 get-question-image，verify_jwt=false 仍須驗證 apikey 與三種自訂憑證。不可自動部署／重設既有 secrets。
+- Phase 6 SQL 目前僅在 `supabase/migration-drafts/20261023120000_game_engine.sql`，須明確批准才移入正式目錄；新增私有 game_image_assets 與 room_questions.game_image_id，不改寫已部署 SQL。RPC／helper 為 INVOKER、空 search_path、service_role-only；不得擴大 browser 權限。
+- 遊戲只使用已審核的私有中性 PNG asset，512 KiB／1600px 上限，僅 IHDR／IDAT／IEND、CRC 檢查，禁止文字／EXIF／SVG／尾隨資料。service_role 無 asset UPDATE，題目 FK 固定原圖；Edge 不 fetch 任意來源 URL、不回傳未揭曉的姓名／來源／人物 ID／署名。正式素材須事先確認授權允許實際呈現方式，Phase 8 才做匯入／重新編碼；既有原始 URL 不會自動變成合格題目。
 - 歷史 FK 不得因房間清除而連帶刪除去重紀錄；完成遊戲紀錄不因歷史重置而刪除。圖片檔名、來源及 Metadata 也需防答案洩漏，不能只靠隱藏姓名欄位。
 - Node.js 使用 22.18+（`.nvmrc` 為 22）；最新版 Supabase SDK 不支援 Node.js 20，驗證腳本使用原生 TypeScript 載入。
 - `src/lib/supabase.ts` 以 `getSupabaseClient()` 延遲建立唯一 Client；未設定時只在明確使用時回報錯誤，禁止為了測試而在首頁加入 Debug UI 或改接 Mock service。
@@ -52,3 +55,4 @@
 - 視覺參考 https://about.miroom.com/：黑白、大字留白、螢光黃綠與鮮明色塊；沿用原創素材，不複製品牌資產。
 - `VITE_` 環境變數均為公開資訊，不可存放任何私密憑證。
 - 每次完成工作執行可行的 `npm test`、`npm run build`，並回報結果與未完成項目。
+- `npm run test:game` 套用已部署 migrations＋Phase 6 草案，以獨立 PGlite 與原創合成 PNG 測試，不改 Phase 4／5 snapshot。`game-concurrency.mjs` 用私有 Unix socket PG／20 連線，`check-game-browser.mjs` 用攔截至本機的 Chrome 驗證；不得將本機 fixtures 或 PASS 當成雲端 15 題驗收。
