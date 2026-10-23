@@ -6,12 +6,12 @@ import { CreateRoomPage } from './pages/CreateRoomPage'
 import { JoinRoomPage } from './pages/JoinRoomPage'
 
 function ScrollManager() {
-  const { pathname, hash, search } = useLocation()
+  const { pathname, hash, search, key } = useLocation()
   const navigate = useNavigate()
   useEffect(() => {
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView()
     else window.scrollTo(0, 0)
-  }, [pathname, hash])
+  }, [pathname, hash, key])
 
   useEffect(() => {
     if (pathname !== '/' || hash !== '#how-to-play') return

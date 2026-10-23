@@ -18,6 +18,7 @@
 - 雲端服務優先免費方案，不使用常駐 Node.js server 或 Socket.IO。
 
 ## 工作規範
+- 目前為 Phase 2 Frontend Setup；Phase 3 後端功能需另行明確授權才可開始。
 - 本階段只有 UI / Mock，不建立 Supabase Project、不呼叫真實房間 API，也不偽裝連線成功。
 - TypeScript strict，採可維護元件；共用 Loading / Error / Empty State，支援手機、鍵盤及桌面。
 - 視覺參考 https://about.miroom.com/：黑白、大字留白、螢光黃綠與鮮明色塊；沿用原創素材，不複製品牌資產。

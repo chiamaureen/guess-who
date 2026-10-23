@@ -1,6 +1,8 @@
 # Guess Who — 猜猜我是誰
 
-多人即時猜名人照片遊戲，目前為 **Phase 1：前端 UI 與 Mock Data**。
+多人即時猜名人照片遊戲，目前為 **Phase 2 Frontend Setup：前端 UI 與 Mock Data**。
+
+Phase 2 的範圍、實測結果、修正與後續準備事項見 [驗收報告](docs/phase2-acceptance.md)。
 
 ## 本機啟動
 
