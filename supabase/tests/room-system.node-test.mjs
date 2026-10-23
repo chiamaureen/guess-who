@@ -115,7 +115,7 @@ test('room code generation uses an unbiased 32-character alphabet and handles da
   for (let index = 0; index < 100; index++) assert.match(randomRoomCode(), /^[A-HJ-NP-Z2-9]{6}$/)
   const identity = await host()
   let attempts = 0
-  const collisionHandler = createRoomHandler({ origins: [origin], publishableKeys: [publishableKey], signingKey }, { rateLimit: async () => ({ allowed: true, retryAfter: 1 }), action: async (action, input) => { attempts++; if (attempts < 3) throw new RoomError('ROOM_CODE_COLLISION'); return rpc('action', { action, input }) } })
+  const collisionHandler = createRoomHandler({ origins: [origin], publishableKeys: [publishableKey], signingKey }, { rateLimit: async () => ({ allowed: true, authenticated: true, retryAfter: 1 }), action: async (action, input) => { attempts++; if (attempts < 3) throw new RoomError('ROOM_CODE_COLLISION'); return rpc('action', { action, input }) } })
   const response = await collisionHandler(new Request('https://edge.invalid/create-room', { method: 'POST', headers: { origin, apikey: publishableKey, 'content-type': 'application/json', 'x-host-credential': identity.credential }, body: JSON.stringify({ categoryIds: [actor], requestKey: nonce() }) }))
   assert.equal(response.status, 200)
   assert.equal(attempts, 3)
@@ -213,15 +213,14 @@ test('revocation needs confirmation and no active rooms, and never deletes the h
 })
 
 test('durable rate limiting commits rejections independently, resets expired windows and never stores raw IP or tokens', async () => {
-  const scopes = [{ hash: await hashToken('rate-fixture', nonce()), limit: 2, windowSeconds: 60 }]
-  assert.equal((await rpc('rate', scopes)).allowed, true)
-  assert.equal((await rpc('rate', scopes)).allowed, true)
-  assert.equal((await rpc('rate', scopes)).allowed, false)
-  assert.equal(await scalar('SELECT request_count FROM public.room_api_rate_limits'), 3)
+  const rateRequest = { action: 'join-room', bootstrap: false, source_bucket: 0 }
+  for (let index = 0; index < 30; index++) assert.equal((await rpc('rate', rateRequest)).allowed, true)
+  assert.equal((await rpc('rate', rateRequest)).allowed, false)
+  assert.equal(await scalar('SELECT min(request_count) FROM public.room_api_rate_limits'), 31)
   await database.exec("UPDATE public.room_api_rate_limits SET window_started_at = now() - interval '2 minutes'")
-  assert.equal((await rpc('rate', scopes)).allowed, true)
-  assert.equal(await scalar('SELECT request_count FROM public.room_api_rate_limits'), 1)
-  const limited = createRoomHandler({ origins: [origin], publishableKeys: [publishableKey], signingKey }, { rateLimit: async () => ({ allowed: false, retryAfter: 30 }), action: async () => { throw new Error('must not execute') } })
+  assert.equal((await rpc('rate', rateRequest)).allowed, true)
+  assert.equal(await scalar('SELECT max(request_count) FROM public.room_api_rate_limits'), 1)
+  const limited = createRoomHandler({ origins: [origin], publishableKeys: [publishableKey], signingKey }, { rateLimit: async () => ({ allowed: false, authenticated: false, retryAfter: 30 }), action: async () => { throw new Error('must not execute') } })
   const response = await limited(new Request('https://edge.invalid/host-session', { method: 'POST', headers: { origin, apikey: publishableKey, 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'bootstrap', bootstrapKey: nonce() }) }))
   assert.equal(response.status, 429)
   assert.equal(response.headers.get('retry-after'), '30')
@@ -274,8 +273,141 @@ test('credential encodings are canonical, separated by purpose and contain no ro
 })
 
 test('unexpected database errors are redacted and do not expose SQL or hashes', async () => {
-  const broken = createRoomHandler({ origins: [origin], publishableKeys: [publishableKey], signingKey }, { rateLimit: async () => ({ allowed: true, retryAfter: 1 }), action: async () => { throw new Error('private database internals') } })
+  const broken = createRoomHandler({ origins: [origin], publishableKeys: [publishableKey], signingKey }, { rateLimit: async () => ({ allowed: true, authenticated: true, retryAfter: 1 }), action: async () => { throw new Error('private database internals') } })
   const response = await broken(new Request('https://edge.invalid/host-session', { method: 'POST', headers: { origin, apikey: publishableKey, 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'bootstrap', bootstrapKey: nonce() }) }))
   assert.equal(response.status, 500)
   assert.ok(!(await response.text()).includes('private database internals'))
+})
+
+const fakeHostHeaders = () => ({ 'x-host-credential': `gw_host_${nonce()}` })
+const fakeCreate = headers => request('create-room', { categoryIds: [actor], requestKey: nonce() }, headers)
+const rateRows = () => scalar('SELECT count(*)::int FROM public.room_api_rate_limits')
+
+test('H-01 A: 20 different fake credentials allocate zero rows after the global limit', async () => {
+  for (let index = 0; index < 140; index++) await fakeCreate(fakeHostHeaders())
+  const beforeRows = await rateRows()
+  for (let index = 0; index < 20; index++) {
+    const response = await handler(new Request('https://edge.invalid/create-room', { method: 'POST', headers: { origin, apikey: publishableKey, 'content-type': 'application/json', ...fakeHostHeaders() }, body: JSON.stringify({ categoryIds: [actor], requestKey: nonce() }) }), { sourceAddress: `trusted-transport-peer-${index}` })
+    assert.equal(response.status, 429)
+  }
+  assert.equal(await rateRows(), beforeRows)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.hosts'), 0)
+})
+
+test('H-01 B: many unique fake credentials never receive identity counters', async () => {
+  for (let index = 0; index < 240; index++) await fakeCreate(fakeHostHeaders())
+  assert.equal(await rateRows(), 2)
+  assert.equal(await scalar('SELECT max(request_count) FROM public.room_api_rate_limits'), 240)
+})
+
+test('H-01 C: authenticated hosts keep normal creation, retries and identity rate limits', async () => {
+  const identity = await host()
+  const first = await room(identity)
+  const repeated = await room(identity, [actor, singer], first.requestKey)
+  assert.equal(first.room.id, repeated.room.id)
+  for (let index = 0; index < 3; index++) await room(identity, [actor, singer], first.requestKey)
+  assert.equal((await fakeCreate({ 'x-host-credential': identity.credential })).response.status, 429)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.rooms'), 1)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.hosts'), 1)
+})
+
+test('H-01 D: real players can join, resume and leave with the same session', async () => {
+  const lobby = await room(await host())
+  const joined = await request('join-room', { roomCode: lobby.room.code, nickname: '安全測試', joinKey: nonce() })
+  assert.equal(joined.response.status, 200)
+  const restored = await request('get-room-state', { roomCode: lobby.room.code }, playerHeaders(joined.data.playerSession))
+  assert.equal(restored.response.status, 200)
+  assert.equal(restored.data.viewer.id, joined.data.viewer.id)
+  assert.equal((await request('leave-room', { roomCode: lobby.room.code }, playerHeaders(joined.data.playerSession))).response.status, 200)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.room_players'), 0)
+})
+
+test('H-01 E: invalid encodings and non-existent credentials cannot evade source limits or authentication', async () => {
+  const identity = await host()
+  const lobby = await room(identity)
+  for (let index = 0; index < 30; index++) {
+    const credentials = index % 2 ? fakeHostHeaders() : { 'x-host-credential': 'invalid' }
+    assert.equal((await request('get-room-state', { roomCode: lobby.room.code }, credentials)).response.status, 401)
+  }
+  assert.equal((await request('get-room-state', { roomCode: lobby.room.code }, fakeHostHeaders())).response.status, 429)
+  assert.equal((await request('get-room-state', { roomCode: lobby.room.code }, hostHeaders(identity, lobby))).response.status, 429)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.rooms'), 1)
+})
+
+test('H-01 F: 80 concurrent requests admit exactly the source allowance without lost counts', async () => {
+  const lobby = await room(await host())
+  const results = await Promise.all(Array.from({ length: 80 }, (_, index) => request('join-room', { roomCode: lobby.room.code, nickname: `朋友${index}`, joinKey: nonce() })))
+  assert.equal(results.filter(result => result.response.status === 200).length, 30)
+  assert.equal(results.filter(result => result.response.status === 429).length, 50)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.room_players'), 30)
+  assert.equal(await scalar('SELECT count(*)::int FROM public.room_api_rate_limits WHERE request_count = 80'), 2)
+})
+
+test('H-01 G: expired limits recover existing sessions and stale cleanup is bounded', async () => {
+  const identity = await host()
+  const lobby = await room(identity)
+  for (let index = 0; index < 30; index++) assert.equal((await request('get-room-state', { roomCode: lobby.room.code }, hostHeaders(identity, lobby))).response.status, 200)
+  assert.equal((await request('get-room-state', { roomCode: lobby.room.code }, hostHeaders(identity, lobby))).response.status, 429)
+  await database.exec("UPDATE public.room_api_rate_limits SET window_started_at = now() - interval '20 minutes'")
+  const staleHashes = await Promise.all(Array.from({ length: 150 }, () => hashToken('stale-fixture', nonce())))
+  await database.query("INSERT INTO public.room_api_rate_limits (scope_hash,window_started_at,request_count,updated_at) SELECT value,now()-interval '25 hours',1,now()-interval '25 hours' FROM unnest($1::text[]) AS value", [staleHashes])
+  const restored = await request('get-room-state', { roomCode: lobby.room.code }, hostHeaders(identity, lobby))
+  assert.equal(restored.response.status, 200)
+  assert.equal(restored.data.viewer.id, identity.hostId)
+  assert.equal(await scalar("SELECT count(*)::int FROM public.room_api_rate_limits WHERE updated_at < now() - interval '24 hours'"), 50)
+  assert.equal((await request('get-room-state', { roomCode: lobby.room.code }, hostHeaders(identity, lobby))).response.status, 200)
+  assert.equal(await scalar("SELECT count(*)::int FROM public.room_api_rate_limits WHERE updated_at < now() - interval '24 hours'"), 0)
+})
+
+test('H-01 H: spoofed forwarding headers and malformed requests cannot bypass shared-source admission', async () => {
+  for (let index = 0; index < 30; index++) {
+    const result = await fakeCreate({ ...fakeHostHeaders(), 'x-forwarded-for': `198.51.100.${index}`, 'x-real-ip': `203.0.113.${index}`, 'cf-connecting-ip': `192.0.2.${index}` })
+    assert.equal(result.response.status, 401)
+  }
+  assert.equal((await fakeCreate({ ...fakeHostHeaders(), 'x-forwarded-for': 'new-untrusted-address' })).response.status, 429)
+  assert.equal(await rateRows(), 2)
+  await database.exec('DELETE FROM public.room_api_rate_limits')
+  for (let index = 0; index < 30; index++) assert.equal((await request('join-room', {}, {}, { body: '{broken' })).response.status, 400)
+  assert.equal((await request('join-room', {}, {}, { body: '{broken' })).response.status, 429)
+  const captured = []
+  const inspectSource = createRoomHandler({ origins: [origin], publishableKeys: [publishableKey], signingKey }, { rateLimit: async input => { captured.push(input); return { allowed: true, authenticated: false, retryAfter: 1 } }, action: async () => { throw new Error('must not execute') } })
+  for (const forwarded of ['fake-one', 'fake-two']) await inspectSource(new Request('https://edge.invalid/create-room', { method: 'POST', headers: { origin, apikey: publishableKey, 'content-type': 'application/json', 'x-forwarded-for': forwarded }, body: '{}' }), { sourceAddress: 'trusted-transport-peer' })
+  assert.equal(captured[0].source_bucket, captured[1].source_bucket)
+  assert.ok(captured.every(input => Number.isInteger(input.source_bucket) && input.source_bucket >= 0 && input.source_bucket <= 255))
+})
+
+test('H-01 I: direct browser RPC is denied and privileged rate input cannot allocate arbitrary scopes', async () => {
+  for (const role of ['anon', 'authenticated']) {
+    for (const sql of ["SELECT public.room_system_rate_limit('{\"action\":\"join-room\",\"bootstrap\":false,\"source_bucket\":0}'::jsonb)", "SELECT public.room_system_action('host-session', '{}'::jsonb)"]) {
+      await assert.rejects(database.transaction(async transaction => { await transaction.exec(`SET LOCAL ROLE ${role}`); await transaction.exec(sql) }), error => error.code === '42501')
+    }
+  }
+  assert.equal(await scalar("SELECT count(*)::int FROM pg_proc JOIN pg_namespace ON pg_namespace.oid=pronamespace CROSS JOIN LATERAL aclexplode(proacl) AS acl WHERE nspname='public' AND proname LIKE 'room_system_%' AND acl.grantee=0"), 0)
+  for (const input of [[{ hash: await hashToken('fake', nonce()), limit: 1000, windowSeconds: 1 }], { action: 'join-room', bootstrap: false, source_bucket: 256 }, { action: 'join-room', bootstrap: false, source_bucket: 0, hash: nonce() }]) await assert.rejects(rpc('rate', input))
+  assert.equal(await rateRows(), 0)
+  for (let index = 0; index < 140; index++) await rpc('rate', { action: 'create-room', bootstrap: false, source_bucket: index % 256, host_hash: await hashToken('host', nonce()) })
+  const beforeRows = await rateRows()
+  assert.equal(beforeRows, 121)
+  for (let index = 140; index < 200; index++) assert.equal((await rpc('rate', { action: 'create-room', bootstrap: false, source_bucket: index % 256, host_hash: await hashToken('host', nonce()) })).allowed, false)
+  assert.equal(await rateRows(), beforeRows)
+})
+
+test('H-01 J: rate keys, state/error DTOs and application logs contain no bearer credentials', async () => {
+  const logs = []
+  const originals = Object.fromEntries(['log', 'warn', 'error'].map(method => [method, console[method]]))
+  for (const method of Object.keys(originals)) console[method] = (...values) => logs.push(values.join(' '))
+  try {
+    const identity = await host()
+    const lobby = await room(identity)
+    const joined = await request('join-room', { roomCode: lobby.room.code, nickname: '無敏感輸出', joinKey: nonce() })
+    const hostState = await request('get-room-state', { roomCode: lobby.room.code }, hostHeaders(identity, lobby))
+    const playerState = await request('get-room-state', { roomCode: lobby.room.code }, playerHeaders(joined.data.playerSession))
+    const denied = await request('close-room', { roomCode: lobby.room.code }, playerHeaders(joined.data.playerSession))
+    const keys = (await database.query('SELECT scope_hash FROM public.room_api_rate_limits')).rows.map(row => row.scope_hash)
+    assert.ok(keys.every(key => /^[0-9a-f]{64}$/.test(key)))
+    const output = JSON.stringify({ keys, hostState: hostState.body, playerState: playerState.body, denied: denied.body, logs })
+    for (const credential of [identity.credential, lobby.hostToken, joined.data.playerSession]) assert.ok(!output.includes(credential))
+    assert.ok(!/credential_hash|session_token_hash|host_token_hash/.test(output))
+    assert.equal(logs.length, 0)
+  } finally { for (const method of Object.keys(originals)) console[method] = originals[method] }
 })

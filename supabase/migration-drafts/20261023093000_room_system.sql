@@ -11,42 +11,99 @@ ALTER TABLE public.room_api_rate_limits FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON public.room_api_rate_limits FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.room_api_rate_limits TO service_role;
 
-CREATE FUNCTION public.room_system_rate_limit(p_scopes jsonb)
+CREATE FUNCTION public.room_system_rate_limit(p_request jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path = ''
 AS $function$
 DECLARE
-  scope jsonb;
-  clock_time timestamptz := clock_timestamp();
+  clock_time timestamptz;
   rate_row public.room_api_rate_limits;
   allowed boolean := true;
+  authenticated boolean := false;
   retry_after integer := 0;
   window_seconds integer;
+  request_limit integer;
+  action_name text;
+  bootstrap boolean;
+  source_bucket integer;
+  identity_id uuid;
+  identity_kind text;
+  scope_name text;
+  scope_digest text;
+  stage integer;
 BEGIN
-  IF jsonb_typeof(p_scopes) <> 'array' OR jsonb_array_length(p_scopes) NOT BETWEEN 1 AND 4 THEN
+  IF jsonb_typeof(p_request) IS DISTINCT FROM 'object' THEN
     RAISE EXCEPTION USING MESSAGE = 'INVALID_INPUT';
   END IF;
-  WITH stale AS (
-    SELECT scope_hash FROM public.room_api_rate_limits WHERE updated_at < clock_time - interval '24 hours'
-    ORDER BY scope_hash LIMIT 100 FOR UPDATE SKIP LOCKED
-  ) DELETE FROM public.room_api_rate_limits AS rate USING stale WHERE rate.scope_hash = stale.scope_hash;
-  FOR scope IN SELECT value FROM jsonb_array_elements(p_scopes) ORDER BY value->>'hash' LOOP
-    window_seconds := (scope->>'windowSeconds')::integer;
-    IF window_seconds NOT BETWEEN 1 AND 3600 OR (scope->>'limit')::integer NOT BETWEEN 1 AND 1000 THEN
-      RAISE EXCEPTION USING MESSAGE = 'INVALID_INPUT';
+  IF EXISTS (SELECT 1 FROM jsonb_object_keys(p_request) AS field WHERE field NOT IN ('action', 'bootstrap', 'source_bucket', 'host_hash', 'player_hash', 'room_code'))
+    OR jsonb_typeof(p_request->'action') IS DISTINCT FROM 'string'
+    OR jsonb_typeof(p_request->'bootstrap') IS DISTINCT FROM 'boolean'
+    OR jsonb_typeof(p_request->'source_bucket') IS DISTINCT FROM 'number' THEN
+    RAISE EXCEPTION USING MESSAGE = 'INVALID_INPUT';
+  END IF;
+  action_name := p_request->>'action';
+  bootstrap := (p_request->>'bootstrap')::boolean;
+  IF action_name NOT IN ('host-session', 'create-room', 'join-room', 'get-room-state', 'leave-room', 'close-room')
+    OR bootstrap AND action_name <> 'host-session'
+    OR (p_request->>'source_bucket') !~ '^(0|[1-9][0-9]{0,2})$' THEN
+    RAISE EXCEPTION USING MESSAGE = 'INVALID_INPUT';
+  END IF;
+  source_bucket := (p_request->>'source_bucket')::integer;
+  IF source_bucket > 255
+    OR p_request ? 'host_hash' AND coalesce(p_request->>'host_hash', '') !~ '^[0-9a-f]{64}$'
+    OR p_request ? 'player_hash' AND coalesce(p_request->>'player_hash', '') !~ '^[0-9a-f]{64}$'
+    OR p_request ? 'room_code' AND coalesce(p_request->>'room_code', '') !~ '^[A-Z0-9]{6}$'
+    OR p_request ? 'host_hash' AND p_request ? 'player_hash' THEN
+    RAISE EXCEPTION USING MESSAGE = 'INVALID_INPUT';
+  END IF;
+  FOR stage IN 0..2 LOOP
+    window_seconds := CASE WHEN bootstrap THEN 600 ELSE 60 END;
+    IF stage = 0 THEN
+      scope_name := 'global:' || action_name || ':' || bootstrap::text;
+      request_limit := CASE WHEN bootstrap THEN 30 WHEN action_name = 'get-room-state' THEN 600 ELSE 120 END;
+    ELSIF stage = 1 THEN
+      scope_name := 'source:' || action_name || ':' || bootstrap::text || ':' || source_bucket::text;
+      request_limit := CASE WHEN bootstrap THEN 5 ELSE 30 END;
+    ELSE
+      IF p_request ? 'host_hash' THEN
+        SELECT id INTO identity_id FROM public.hosts WHERE credential_hash = p_request->>'host_hash';
+        identity_kind := 'host';
+      ELSIF p_request ? 'player_hash' THEN
+        SELECT player.id INTO identity_id FROM public.room_players AS player
+        JOIN public.rooms AS room ON room.id = player.room_id
+        WHERE player.session_token_hash = p_request->>'player_hash' AND room.room_code = p_request->>'room_code';
+        identity_kind := 'player';
+      ELSE
+        authenticated := bootstrap OR action_name = 'join-room';
+        EXIT;
+      END IF;
+      authenticated := identity_id IS NOT NULL;
+      EXIT WHEN NOT authenticated;
+      scope_name := 'identity:' || identity_kind || ':' || action_name || ':' || identity_id::text;
+      window_seconds := 60;
+      request_limit := CASE WHEN action_name = 'create-room' THEN 5 ELSE 30 END;
     END IF;
+    scope_digest := encode(sha256(convert_to('guess-who:rate:v2:' || scope_name, 'UTF8')), 'hex');
+    clock_time := clock_timestamp();
     INSERT INTO public.room_api_rate_limits (scope_hash, window_started_at, request_count, updated_at)
-    VALUES (scope->>'hash', clock_time, 1, clock_time)
+    VALUES (scope_digest, clock_time, 1, clock_time)
     ON CONFLICT (scope_hash) DO UPDATE SET
       window_started_at = CASE WHEN room_api_rate_limits.window_started_at + make_interval(secs => window_seconds) <= clock_time THEN clock_time ELSE room_api_rate_limits.window_started_at END,
       request_count = CASE WHEN room_api_rate_limits.window_started_at + make_interval(secs => window_seconds) <= clock_time THEN 1 ELSE least(room_api_rate_limits.request_count + 1, 1000000) END,
       updated_at = clock_time
     RETURNING * INTO rate_row;
-    IF rate_row.request_count > (scope->>'limit')::integer THEN
+    clock_time := clock_timestamp();
+    IF rate_row.request_count > request_limit THEN
       allowed := false;
-      retry_after := greatest(retry_after, ceil(extract(epoch FROM rate_row.window_started_at + make_interval(secs => window_seconds) - clock_time))::integer);
+      retry_after := ceil(extract(epoch FROM rate_row.window_started_at + make_interval(secs => window_seconds) - clock_time))::integer;
+      EXIT;
     END IF;
   END LOOP;
-  RETURN jsonb_build_object('allowed', allowed, 'retryAfter', greatest(retry_after, 1));
+  clock_time := clock_timestamp();
+  WITH stale AS (
+    SELECT scope_hash FROM public.room_api_rate_limits WHERE updated_at < clock_time - interval '24 hours'
+    ORDER BY scope_hash LIMIT 100 FOR UPDATE SKIP LOCKED
+  ) DELETE FROM public.room_api_rate_limits AS rate USING stale WHERE rate.scope_hash = stale.scope_hash;
+  RETURN jsonb_build_object('allowed', allowed, 'authenticated', authenticated, 'retryAfter', greatest(retry_after, 1));
 END;
 $function$;
 

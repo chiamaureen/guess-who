@@ -1,8 +1,16 @@
 import { deriveToken, hashToken, nonce, validNonce, validToken } from './crypto.ts'
 
 type Payload = Record<string, unknown>
+export interface RateLimitRequest {
+  action: string
+  bootstrap: boolean
+  source_bucket: number
+  host_hash?: string
+  player_hash?: string
+  room_code?: string
+}
 export interface Backend {
-  rateLimit(scopes: { hash: string; limit: number; windowSeconds: number }[]): Promise<{ allowed: boolean; retryAfter: number }>
+  rateLimit(request: RateLimitRequest): Promise<{ allowed: boolean; authenticated: boolean; retryAfter: number }>
   action(action: string, input: Payload): Promise<Payload>
 }
 export interface HandlerConfig {
@@ -86,7 +94,7 @@ function safeLobby(data: Payload) {
 
 export function createRoomHandler(config: HandlerConfig, backend: Backend) {
   if (!/^[0-9a-fA-F]{64}$/.test(config.signingKey) || /^(.)\1+$/.test(config.signingKey) || !config.publishableKeys.length || !config.origins.length || config.origins.some(origin => { const url = new URL(origin); return url.origin !== origin || !(url.protocol === 'https:' || url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)) })) throw new RoomError('SERVICE_UNAVAILABLE')
-  return async (request: Request) => {
+  return async (request: Request, connection?: { sourceAddress?: string }) => {
     const origin = request.headers.get('origin') ?? ''
     const headers = new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Vary': 'Origin', 'X-Content-Type-Options': 'nosniff' })
     if (!config.origins.includes(origin)) return new Response(JSON.stringify({ error: { code: 'FORBIDDEN', message: '這個網站來源不被允許。' } }), { status: 403, headers })
@@ -97,23 +105,29 @@ export function createRoomHandler(config: HandlerConfig, backend: Backend) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
     if (request.method !== 'POST') return new Response(JSON.stringify({ error: { code: 'METHOD_NOT_ALLOWED', message: '僅支援 POST。' } }), { status: 405, headers })
     try {
-      if (!config.publishableKeys.includes(request.headers.get('apikey') ?? '')) throw new RoomError('UNAUTHORIZED')
       const action = new URL(request.url).pathname.split('/').filter(Boolean).at(-1) ?? ''
       assertInput(['host-session', 'create-room', 'join-room', 'get-room-state', 'leave-room', 'close-room'].includes(action))
-      const input = await readBody(request)
+      let input: Payload = {}
+      let bodyError: unknown
+      try { input = await readBody(request) } catch (error) { bodyError = error }
       const host = request.headers.get('x-host-credential')
       const roomToken = request.headers.get('x-room-token')
       const player = request.headers.get('x-player-session')
+      const bootstrap = action === 'host-session' && input.mode === 'bootstrap'
+      const address = connection?.sourceAddress?.trim()
+      const source = address && address.length <= 128 ? address : 'unavailable'
+      const sourceHash = await hashToken('rate-source', await deriveToken(config.signingKey, 'rate-source', source))
+      const rateRequest: RateLimitRequest = { action, bootstrap, source_bucket: Number.parseInt(sourceHash.slice(0, 2), 16) }
+      if (validToken(host, 'host')) rateRequest.host_hash = await hashToken('host', host)
+      else if (validToken(player, 'player')) rateRequest.player_hash = await hashToken('player', player)
+      if (typeof input.roomCode === 'string' && /^[a-zA-Z0-9]{6}$/.test(input.roomCode.trim())) rateRequest.room_code = input.roomCode.trim().toUpperCase()
+      const rate = await backend.rateLimit(rateRequest)
+      if (!rate.allowed) { headers.set('Retry-After', String(rate.retryAfter)); throw new RoomError('RATE_LIMITED') }
+      if (!config.publishableKeys.includes(request.headers.get('apikey') ?? '')) throw new RoomError('UNAUTHORIZED')
+      if (bodyError) throw bodyError
       if (host && !validToken(host, 'host') || roomToken && !validToken(roomToken, 'room') || player && !validToken(player, 'player')) throw new RoomError('UNAUTHORIZED')
       assertInput(!(host && player) && !(player && roomToken))
-      const bootstrap = action === 'host-session' && input.mode === 'bootstrap'
-      const scopes = [
-        { hash: await hashToken('rate', `global:${action}:${bootstrap ? 'bootstrap' : 'standard'}`), limit: bootstrap ? 30 : action === 'get-room-state' ? 600 : 120, windowSeconds: bootstrap ? 600 : 60 },
-        { hash: await deriveToken(config.signingKey, 'rate-ip', `${action}:${bootstrap ? 'bootstrap' : 'standard'}:${request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'}`).then(value => hashToken('rate', value)), limit: bootstrap ? 5 : 30, windowSeconds: bootstrap ? 600 : 60 },
-      ]
-      if (host || player) scopes.push({ hash: await hashToken('rate', `${action}:${host ?? player}`), limit: action === 'create-room' ? 5 : 30, windowSeconds: 60 })
-      const rate = await backend.rateLimit(scopes)
-      if (!rate.allowed) { headers.set('Retry-After', String(rate.retryAfter)); throw new RoomError('RATE_LIMITED') }
+      if (!rate.authenticated) throw new RoomError('UNAUTHORIZED')
       const credentials: Payload = host ? { host_hash: await hashToken('host', host) } : player ? { player_hash: await hashToken('player', player) } : {}
       if (roomToken) credentials.room_token_hash = await hashToken('room', roomToken)
       let data: Payload

@@ -22,6 +22,7 @@ if (chromium) {
   let categoryMode = 'normal'
   let roomCode
   let invite
+  let firstStateRequestAt
   const redact = message => message.replace(/(?:gw_(?:host|room|player)|sb_publishable|sb_secret|sbp)_[A-Za-z0-9_-]+/g, '[REDACTED]')
   async function check(name, operation) {
     try { await operation(); checks.push({ name, result: 'PASS' }) }
@@ -40,6 +41,7 @@ if (chromium) {
         return route.fulfill({ response: await route.fetch({ url: `${fixture}/categories`, headers: { origin } }) })
       }
       if (url.pathname.startsWith('/functions/v1/room-system/')) {
+        if (url.pathname.endsWith('/get-room-state') && firstStateRequestAt === undefined) firstStateRequestAt = Date.now()
         const headers = { ...request.headers(), origin, apikey: 'sb_publishable_fixture', 'x-forwarded-for': `fixture-${label}` }
         delete headers.authorization
         const response = await route.fetch({ url: `${fixture}${url.pathname}`, headers })
@@ -160,6 +162,10 @@ if (chromium) {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'horizontal overflow')
           if ([375, 1440].includes(width)) await page.screenshot({ path: `${artifacts}/${name}-${width}.png`, fullPage: true })
         })
+      }
+      if (width === 375) {
+        const sharedSourceWait = Math.max(0, 61000 - (Date.now() - firstStateRequestAt))
+        if (sharedSourceWait) await new Promise(resolve => setTimeout(resolve, sharedSourceWait))
       }
     }
     await check('player can leave without deleting the room or another player', async () => {

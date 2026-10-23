@@ -46,7 +46,7 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
       const headers = new Headers()
       for (const [name, value] of Object.entries(incoming.headers)) if (value) headers.set(name, Array.isArray(value) ? value.join(',') : value)
       const request = new Request(url, { method: incoming.method, headers, body: ['GET', 'HEAD'].includes(incoming.method) ? undefined : body })
-      const response = await handler(request)
+      const response = await handler(request, { sourceAddress: incoming.socket.remoteAddress })
       outgoing.writeHead(response.status, Object.fromEntries(response.headers))
       outgoing.end(await response.text())
     } catch { outgoing.writeHead(500); outgoing.end('{"error":{"code":"FIXTURE_ERROR"}}') }

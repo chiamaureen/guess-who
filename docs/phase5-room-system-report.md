@@ -8,6 +8,8 @@
 
 **本機驗收 PASS；完整 Phase 5 雲端整合為 BLOCKED，尚未宣稱 Phase 5 完成。**
 
+後續部署前審核發現的 H-01 High 已完成本機修復：20 次全域 429 新增 0 列；原 119 項與新增 A–J 合計 129 項通過，48 項 browser 與 native PG17.10／20 連線四組併發驗證通過。安全審核更新為 **READY（待使用者審批及部署前 preflight，不是 Cloud 驗收完成）**。本文件其他數字保留初次本機驗收紀錄；最新證據與九步部署計畫見 [Cloud Deployment Approval Report](phase5-cloud-deployment-approval.md)。
+
 - `npm test`：119 項通過，包含原有 17 項後端隔離測試；沒有重複開發既有房間功能。
 - Chrome／Playwright：48 項通過，包含主持人建立、玩家加入、邀請、分類複選、刷新恢復與 30 項 RWD 檢查。
 - `npm run build`、Edge TypeScript 檢查與 Git 安全檢查通過；未設定 lint，不能記為通過。

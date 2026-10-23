@@ -289,7 +289,7 @@ Cloud 另有不在應用 Migration 內的 `public.rls_auto_enable()`／`ensure_r
 | 新物件 | 用途與權限 |
 | --- | --- |
 | room_api_rate_limits | 私有第十表：scope_hash、window_started_at、request_count、updated_at；scope_hash 主鍵及清理用 updated_at 索引。ENABLE／FORCE RLS，瀏覽器無任何權限；service_role 只有 SELECT／INSERT／UPDATE／DELETE |
-| room_system_rate_limit(jsonb) | 持久化限流；獨立交易提交，避免主請求失敗後計數回滾 |
+| room_system_rate_limit(jsonb) | H-01 修正版 p_request：固定政策，全域→有限來源桶→DB 憑證驗證→Identity gate；獨立交易提交，避免主請求失敗後計數回滾 |
 | room_system_action(text,jsonb) | Host bootstrap／恢復／撤銷、建立＋分類、加入、狀態、離開、關閉的交易邊界 |
 | room_system_lobby(uuid,text,uuid) | 產生等待室白名單 DTO；不含憑證 Hash、人物、答案或歷史 |
 

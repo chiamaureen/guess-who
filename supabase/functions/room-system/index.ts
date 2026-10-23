@@ -11,7 +11,7 @@ function keys(name: string) {
   return Object.values(parsed).filter((value): value is string => typeof value === 'string')
 }
 
-Deno.serve(async request => {
+Deno.serve(async (request, connection) => {
   try {
     if (!handler) {
       const secret = keys('SUPABASE_SECRET_KEYS')[0] ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -24,11 +24,17 @@ Deno.serve(async request => {
         return data
       }
       handler = createRoomHandler({ origins: (Deno.env.get('ROOM_SYSTEM_ALLOWED_ORIGINS') ?? '').split(',').map(value => value.trim()).filter(Boolean), signingKey: Deno.env.get('ROOM_SYSTEM_SIGNING_KEY') ?? '', publishableKeys: keys('SUPABASE_PUBLISHABLE_KEYS') }, {
-        rateLimit: scopes => call('room_system_rate_limit', { p_scopes: scopes }),
+        rateLimit: async input => {
+          const result = await call('room_system_rate_limit', { p_request: input })
+          if (typeof result?.allowed !== 'boolean' || typeof result?.authenticated !== 'boolean' || !Number.isInteger(result?.retryAfter) || result.retryAfter < 1) throw new Error('INVALID_RATE_RESPONSE')
+          return result
+        },
         action: (action, input) => call('room_system_action', { p_action: action, p_input: input }),
       })
     }
-    return await handler(request)
+    let sourceAddress: string | undefined
+    try { sourceAddress = connection?.remoteAddr?.hostname } catch {}
+    return await handler(request, { sourceAddress })
   } catch {
     return new Response(JSON.stringify({ error: { code: 'SERVICE_UNAVAILABLE', message: '房間服務尚未完成設定。' } }), { status: 503, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } })
   }

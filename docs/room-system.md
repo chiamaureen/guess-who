@@ -107,13 +107,21 @@ Hash 以 `guess-who:{purpose}:v1:` 分離用途；不能把玩家憑證拿來當
 
 | Scope | 限制 |
 | --- | --- |
-| Host bootstrap 全域／IP hint | 30 次／10 分鐘；5 次／10 分鐘 |
+| Host bootstrap 全域／來源桶 | 30 次／10 分鐘；5 次／10 分鐘 |
 | 其他 action 全域 | 120 次／分鐘；get-room-state 為 600 次／分鐘 |
-| 其他 action IP hint | 30 次／分鐘 |
-| 已提供 Host／Player 憑證 | 每 action 30 次／分鐘；create-room 為 5 次／分鐘 |
+| 其他 action 來源桶 | 30 次／分鐘 |
+| DB 驗證成功的 Host／Player Identity | 每 action 30 次／分鐘；create-room 為 5 次／分鐘 |
 | 房間資源 | 同 Host 最多五個未過期活動房間；每房最多 100 玩家 |
 
-IP hint 僅輔助：X-Forwarded-For 可能被偽造，**不是唯一防線**；不依 IP 判斷身分，另有不可靠換 IP 規避的全域及憑證 bucket。只存 HMAC／Hash scope，不存原始 IP 或 Token。每次最多清理 100 筆超過 24 小時未更新的限流列。
+H-01 修復後，`room_system_rate_limit(p_request jsonb)` 不再接受任意 hash／limit／window 陣列。政策由 SQL 固定，依序執行全域 gate → 來源 gate → DB 驗證憑證 → verified Identity gate；一旦拒絕就停止後續分配，無效憑證沒有個別計數器。回傳 `{allowed,authenticated,retryAfter}` 只供 Edge 使用，業務 RPC 再次驗證控制權，避免驗證與使用之間的撤銷競態。
+
+來源只採用 runtime 的 `Deno.serve` connection `remoteAddr.hostname`（本機 fixture 使用 socket.remoteAddress），**不讀 X-Forwarded-For／X-Real-IP／CF-Connecting-IP**。此地址可能是平台代理，不宣稱等同真實終端玩家 IP；若 metadata 不可用／存取失敗，使用所有人共用的 unavailable 來源，不能退回信任 headers。[Deno connection metadata](https://docs.deno.com/api/deno/http-server/)
+
+連線來源以後端 HMAC 映射到 256 個固定桶，SQL 驗證 slot 為 0–255。六個 action 與額外 bootstrap mode 合計最多 7 個 global、1792 個 source key，不因偽造 IP／Token／每次換 key／時間窗口累積。這會有雜湊碰撞與代理／fallback 共用配額的可用性取捨，必須在批准部署後確認實際 metadata／多人容量，不能為改善容量而重新信任客戶端 headers。
+
+Identity key 只在 DB 以 credential hash 找到真實 Host ID，或匹配房間的 Player ID 後，依用途、action、server ID 產生 SHA-256；不從任意未驗證 Token 建桶。DB 不存原始 IP、Token 或明文 Identity key。每個 scope 的窗口更新沿用同一主鍵，不建立時間後綴新列。
+
+每次限流交易固定先鎖全域、再來源、再身分；以唯一鍵 UPSERT 原子累加，拒絕也獨立提交。最後才以 `FOR UPDATE SKIP LOCKED` 清理最多 100 筆超過 24 小時未更新的列，清理後不再取得其他 rate lock；沒有流量時不會自動清空，但也不會產生新列。匿名大量錯誤請求只能使用固定 gate；已驗證 Identity 的舊列會在後續流量中分批回收。
 
 這不是完整 DDoS 防護；全域 cap 可能被惡意耗盡造成可用性限制，共用 NAT 的多人快速加入／刷新也可能被限流。MVP 優先保護免費額度；正式流量調整需另行評估，不隱藏此權衡。
 
@@ -155,6 +163,14 @@ npm run build
 
 `npm test` 包含既有單元測試、Health 模擬、Phase 4 baseline、Phase 5 Fetch handler＋PGlite 交易／授權，以及 Edge TypeScript 檢查。PGlite 為 PostgreSQL 18.6，Cloud 先前確認為 PG17.11；本機不代替真實 Cloud／Deno runtime 驗收。
 
+H-01 回歸：`node scripts/review-room-rate-limit.mjs`；Test A–J 已納入 `npm run test:rooms`。真正多連線檢查可用已安裝的本機 PostgreSQL binary 與 pg driver：
+
+```sh
+PG_BIN_DIR=/absolute/path/to/postgres/bin PG_DRIVER_MODULE=/absolute/path/to/pg/lib/index.js node supabase/tests/room-rate-concurrency.mjs
+```
+
+工具缺失為 BLOCKED，不自動安裝或接受 Cloud DB URL；script 只建立 /tmp 私有 Unix socket cluster、停用 TCP、以 20 條連線測試，finally 停止。本次實際使用 PG17.10，與 managed PG17.11 仍有 minor／平台差異，工具沒有加入專案 production dependencies。
+
 瀏覽器工具使用既有 Playwright 與 Chrome；不會自動安裝工具：
 
 ```sh
@@ -163,6 +179,8 @@ PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs node scripts/check-room
 ```
 
 若專案環境已安裝 `playwright` 可省略 `PLAYWRIGHT_MODULE`。script 自行啟閉隔離後端，將 Supabase 請求攔截轉送本機；缺工具為 BLOCKED，失敗為 FAIL。沒有真實 Cloud 房間資料寫入。結果與截圖預設 `/tmp/guess-who-phase5-qa/`。
+
+RWD suite 在密集頁面刷新中等待真實 60 秒來源窗口，因所有測試 context 都經同一 localhost socket；不以偽造 forwarding headers 區分玩家、不清除限流資料或提高正式門檻。單獨的 Test F 與 native PG 檢查負責驗證超量並行確實被拒絕。
 
 ## 11. 後續邊界
 

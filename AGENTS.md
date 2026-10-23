@@ -43,6 +43,8 @@
 - `npm run test:rooms` 在隔離 PGlite 套用正式 migrations 與待審 Room System SQL，測真實 Fetch handler／交易／權限；`test:db` 保留 Phase 4 snapshot 回歸範圍。測試 loader 可接受草案核准後移入 migrations，但本階段不得自行移入或部署。
 - `scripts/check-room-browser.mjs` 使用 Chrome／Playwright 與自動關閉的隔離本機 fixture，攔截 Supabase 網路請求；不連真實房間 API，不讀 Cloud 憑證。缺少瀏覽器工具為 BLOCKED，不得假設通過；Node fixture 只供測試，不是正式常駐伺服器架構。
 - Phase 5 本機驗收紀錄在 `docs/phase5-room-system-report.md`：119 項自動化測試、48 項 browser 檢查與 Build 通過；沒有 lint script。Cloud 部署／Secrets／真實房間整合仍為 BLOCKED，不能把本機紀錄或 Auth Health PASS 當成 Phase 5 完成。
+- H-01 已本機修復：SQL 固定全域→來源→驗證身分→Identity gate，禁止未驗證 Token 建桶；來源只用 runtime connection metadata，不讀 forwarding headers，缺失時用保守共享桶。來源 HMAC 壓至 256 slots，RPC 不接受任意 scope／limit，維持 service_role-only EXECUTE。清理在 gate 之後、有界 SKIP LOCKED；不得回復舊的動態 scope 陣列。
+- 部署安全審核見 `docs/phase5-cloud-deployment-approval.md`，READY 僅代表 H-01 本機安全 Gate：129 項測試、48 browser、PG17.10／20 連線四組併發與獨立 H-01 檢查通過；不是 Cloud 完成或部署授權。本次只授權本機修復，不執行任何遠端 db push（含 dry-run）／Secrets／Function 部署，修正版 dry-run 留待下一次明確授權。
 - 最終驗收僅允許 Cloud 唯讀 SQL／GET 與 migration dry-run，禁止對 linked Cloud 執行任何測試資料異動。`npm run check:db` 比對欄位、限制、索引、GRANT、RLS 與 trigger；既有 `rls_auto_enable` 事件函式必須按已審查來源摘要、型別、擁有者與 search_path 驗證，不能忽略任意額外 SECURITY DEFINER 函式。詳見 `docs/phase4-final-verification.md`。
 - TypeScript strict，採可維護元件；共用 Loading / Error / Empty State，支援手機、鍵盤及桌面。
 - 視覺參考 https://about.miroom.com/：黑白、大字留白、螢光黃綠與鮮明色塊；沿用原創素材，不複製品牌資產。
