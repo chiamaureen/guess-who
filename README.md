@@ -8,7 +8,7 @@
 2. 玩家輸入房間代碼與暱稱加入，看照片並口頭回答。
 3. 主持人判斷答案、揭曉正解，再切換下一題。
 
-每個房間只有一位主持人，可有多位玩家；每場固定 15 題，同一人物不重複。不需註冊，也不設計分或排行榜。
+每個房間只有一位主持人，可有多位玩家；每場固定 15 題。同一主持人跨場不重複人物，直到手動重置自己的歷史。不需註冊，也不設計分或排行榜。
 
 ## 專案架構
 
@@ -27,7 +27,7 @@
 
 前端負責畫面與操作；伺服器負責遊戲狀態、隨機出題與主持人權限。玩家在揭曉前不能取得正確姓名，未來透過資料隔離、RLS 與伺服器授權保護答案。
 
-**目前進度：** 已完成前端頁面、Mock 流程與 Supabase 基礎設定及雲端連線驗證。資料庫、真正房間 API、遊戲引擎與 Realtime 尚未實作，以上後端架構為後續目標。
+**目前進度：** 前端 Mock 流程與 Supabase 基礎連線已完成；Phase 4 資料庫結構與安全規則已部署，通過本機 SQL 測試及雲端權限驗證。真正房間 API、匿名身分、遊戲引擎與 Realtime 尚未實作。
 
 ## 專案結構
 
@@ -41,7 +41,7 @@ src/
   data/         Mock Data
   types/        資料型別
   styles/       全站樣式與 RWD
-supabase/       Supabase CLI 設定
+supabase/       CLI 設定、SQL migrations、分類 seed 與資料庫測試
 scripts/        連線驗證與測試腳本
 docs/           階段驗收與開發紀錄
 ```
@@ -60,7 +60,8 @@ npm run dev
 需要驗證 Supabase 時，依 `.env.example` 在 `.env.local` 填入 Project URL 與 Publishable Key；不要放入私密金鑰或密碼。
 
 - `npm test`：執行自動化測試。
+- `npm run test:db`：在隔離的本機資料庫驗證 Schema 與權限，不連線雲端。
 - `npm run build`：檢查 TypeScript 並建置前端。
 - `npm run check:supabase`：驗證 SDK 初始化與雲端 Auth API 連線。
 
-開發規範見 [AGENTS.md](AGENTS.md)，各階段驗收結果見 [docs](docs/)。
+開發規範見 [AGENTS.md](AGENTS.md)，資料庫設計與 ERD 見 [Database Schema](docs/database-schema.md)，各階段驗收結果見 [docs](docs/)。
