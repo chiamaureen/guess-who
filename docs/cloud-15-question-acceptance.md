@@ -4,7 +4,7 @@
 
 ## 授權與前置條件
 
-1. 題庫匯入需單獨批准；匯入完成先執行同批 `verify-import.sql`（READ ONLY），應為 expected_subjects=15、verified_subjects=15，再核對可用題庫。
+1. 題庫匯入已獲單獨批准並完成；同批 `verify-import.sql`（READ ONLY）實際 PASS，expected_subjects=15、verified_subjects=15，唯讀盤點可用且未使用人物 15 位。見 [Cloud Import Report](phase8-cloud-import-report.md)。執行 QA 前仍需重新唯讀確認當下庫存，不得重複匯入。
 2. 再取得 **可辨識 QA 業務資料寫入** 授權：建議一個新專用 Host、兩個新房間、一位 Player；第一房完整 15 題、第二房驗證不足與手動 reset 後第 1 題。Reset 只影響此專用 Host；不使用既有主持人、舊房間或 Phase 5 留存資料。
 3. 不清除既有 Cloud 資料／限流桶、不改 cap、不輪替 Signing Key。測試憑證只留在獨立 browser context／本機私密備份，不寫 URL、報告、截圖、console 或 HAR。
 4. 使用兩個獨立瀏覽器 profile／context 模擬 Host 與 Player；新 Host 必須沒有舊 history。只使用已核對的 Project fgvajdnzrnptdjurhjfo 與允許的 Origin。

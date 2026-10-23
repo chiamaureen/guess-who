@@ -1,6 +1,6 @@
 # Phase 8 — Minimum Question Bank Review
 
-2026-10-23（Asia/Taipei）。**本機題庫審核／匯入準備 READY；已獲 PostgreSQL 批次匯入批准，但本次 CLI 旗標錯誤而停止，雲端可用仍為 0。** 執行結果與待重新確認的命令見 [Cloud Import Report](phase8-cloud-import-report.md)。
+2026-10-23（Asia/Taipei）。**已審核原批次 15 位人物現已獲批准匯入 Cloud，45 列單交易 COMMIT 且唯讀驗證 PASS；雲端可用且未使用人物 15 位。** 第一次 CLI 旗標錯誤已在明確重試授權下修正。見 [Cloud Import Report](phase8-cloud-import-report.md)；完整遊戲 QA 尚未授權或執行。
 
 ## 結果與範圍
 
@@ -88,21 +88,21 @@ data/question-bank/prepared/review-20261023/
 | npm test | PASS，173 項；Edge TypeScript 通過 |
 | npm run build | PASS；沒有把題庫／Sharp 打包進前端 |
 | 兩 Function 正式 Origin | PASS，實際 Cloud OPTIONS 204、錯誤 Origin 403，零業務操作 |
-| Cloud 目前題庫 | 仍是 0 人／0 approved assets／0 usable；真正唯讀盤點 |
-| Cloud 匯入／15 題驗收 | **匯入指令遭 CLI 拒絕，SQL 未執行；遊戲驗收 NOT EXECUTED**，詳見 Cloud Import Report |
+| Cloud 目前題庫 | 15 人／15 approved assets／15 usable 且未使用；真正唯讀盤點 |
+| Cloud 匯入／15 題驗收 | **原批次匯入與精確唯讀驗證 PASS；完整遊戲驗收 NOT EXECUTED**，詳見 Cloud Import Report |
 
 本機紀錄：`/tmp/guess-who-phase8-tests.log`、`/tmp/guess-who-phase8-build.log`、`/tmp/guess-who-phase8-real-bank.log`。沒有輸出 Secret、Token 或憑證 Hash；素材／SQL 校驗摘要用於審核收據。
 
 ## 下一個明確批准
 
-以下為原始建議，使用者已批准此範圍；但本次遇 CLI 旗標錯誤後依指示停止，**不得自行重試寫入**。下一次明確指示與修正後命令見 Cloud Import Report。原建議為：**將上述 SHA-256 的 reviewed-import.sql 套用到 fgvajdnzrnptdjurhjfo，只新增 15 人＋15 關聯＋15 圖片，再跑同批 verify-import.sql 與唯讀庫存檢查**。
+**原批次已完成，不需再次批准或重跑匯入。** 下一個明確批准應限於 Cloud 15 題 QA 房間與專用 Host／Player 業務資料寫入，詳見 [15 Question Acceptance](cloud-15-question-acceptance.md)；本次沒有執行這些操作。
 
-批准後仍先核對 linked ref、檔案 hash 與當下重複資料；任何衝突／錯誤停止，不 reset／repair／刪舊資料。示意命令目前**未執行**：
+以下為已完成匯入／驗證的命令紀錄；執行前已核對 linked ref、檔案 hash、庫存與權限。**不可重複執行寫入命令**，重複批次會被拒絕：
 
 ```sh
-npx --no-install supabase db query --linked --file data/question-bank/prepared/review-20261023/reviewed-import.sql
-npx --no-install supabase db query --linked --file data/question-bank/prepared/review-20261023/verify-import.sql
-npx --no-install supabase db query --linked --file supabase/tests/mvp_inventory.sql
+npx --no-install supabase db query --linked --project-ref fgvajdnzrnptdjurhjfo --file data/question-bank/prepared/review-20261023/reviewed-import.sql
+npx --no-install supabase db query --linked --project-ref fgvajdnzrnptdjurhjfo --file data/question-bank/prepared/review-20261023/verify-import.sql
+npx --no-install supabase db query --linked --project-ref fgvajdnzrnptdjurhjfo --file supabase/tests/verify_question_bank_access.sql
 ```
 
 這個批准不包含 Host／Room／Player QA 寫入、history reset、Commit／Push／Pages。完整 Cloud 測試計畫見 [15 Question Acceptance](cloud-15-question-acceptance.md)，網站準備見 [Pages Release Checklist](pages-release-checklist.md)。

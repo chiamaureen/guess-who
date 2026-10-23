@@ -23,7 +23,7 @@
 ## 工作規範
 - Phase 5 Room System 已完成本機與 Cloud 驗收：匿名 Host、建立／加入、等待室、Session 恢復／離開／關閉；保留既有視覺／RWD，不重複開發已完成的功能。
 - 使用者已明確批准並完成本次限定 Cloud 部署：ref fgvajdnzrnptdjurhjfo、唯一 Phase 5 Migration、兩個自訂 Secrets、room-system v1 與可辨識 QA 新資料。這不是後續變更的永久授權；新 Cloud 寫入／部署需另批准，仍不 Commit／Push 或發布 GitHub Pages。
-- Phase 6 本機已驗收，且使用者於本次衝刺明確批准唯一增量及 game-engine 部署，已完成 Cloud Migration／權限驗證／Function v1 ACTIVE；但雲端題庫 0，完整 15 題 Cloud 遊戲仍 BLOCKED。詳見 `docs/mvp-deployment-sprint.md`。只用本對話，不使用 Subagents／Worktree；不加入多房協調或資料庫單房限制。Phase 7 尚未開始。
+- Phase 6 本機已驗收，且使用者於本次衝刺明確批准唯一增量及 game-engine 部署，已完成 Cloud Migration／權限驗證／Function v1 ACTIVE；Phase 8 現已匯入 15 位可用人物，但完整 15 題 Cloud 遊戲尚未執行、需另授權。詳見 `docs/phase8-cloud-import-report.md`。只用本對話，不使用 Subagents／Worktree；不加入多房協調或資料庫單房限制。Phase 7 尚未開始。
 - 實際 `supabase db push` 必須取得使用者明確確認；不得以任務授權或 sandbox 指令核准代替部署確認。部署前檢查目標 Project、既有資料、Migration history、SQL 與權限；已部署 Migration 不可修改，只能新增增量 Migration。
 - `20261023060000_create_guess_who_schema.sql` 與 `20261023093000_room_system.sql` 均已於 2026-10-23 經使用者確認部署，禁止改寫；後者 digest 為 d4917bd4d103b537a575e87d78e100dda4bf71b0b3865525b3b26954f76ad10f。十表／三 RPC／RLS／GRANT 已驗證，不代表 Phase 6 引擎已實作。
 - 不執行 `supabase start`、`supabase db reset`、`supabase db pull`、破壞性清除、強制 Migration repair 或自行刪除既有資料；不啟用付費資源，不自動 Commit／Push。
@@ -57,8 +57,8 @@
 - 每次完成工作執行可行的 `npm test`、`npm run build`，並回報結果與未完成項目。
 - `npm run test:game` 套用正式 migrations，以獨立 PGlite 與原創合成 PNG 測試；Phase 4／5 snapshot 保持各階段範圍。`game-concurrency.mjs` 用私有 Unix socket PG／20 連線，`check-game-browser.mjs` 用攔截至本機的 Chrome 驗證；不得將本機 fixtures 或 PASS 當成雲端 15 題驗收。
 - Phase 8 僅準備候選與離線匯入工具：`prepare-question-bank.mjs` 讀公開 Wikidata／Commons Metadata，一律 pending／approved=false；`prepare-question-import.mjs` 拒絕未審核資料，只產生本機 SQL，不連 Cloud。prepared 目錄須忽略，不進 public／src。人工 subject／rights／image、署名時機與可解碼 PNG 審核不可省略，Metadata Public domain 不代表已完成審核。
-- Phase 8 已另完成逐頁來源與視覺工程審核：原候選排除兩張 personality 警示、補林肯／格蘭特，ignored reviewed-bank.json 共 15 位，預計純 INSERT 45 列。見 `docs/phase8-minimum-bank-review.md`；Cloud 仍為 0，未批准不得匯入／寫 QA 資料。不得將 Codex 審核冒稱人類／律師或全球權利保證。
-- 使用者已批准原 45 列 PostgreSQL 私圖批次；本次因執行者漏加 CLI `--linked` 而在 SQL 前遭拒，唯讀確認 Cloud 仍為 0 且舊資料筆數不變。依錯誤即停止要求，未重試寫入，等待下一次明確指示；詳見 `docs/phase8-cloud-import-report.md`。`db query --project-ref` 必須同時帶 `--linked`。新增 `supabase/tests/verify_question_bank_access.sql` 僅唯讀，實際切換 anon／authenticated 驗證直接圖片 SELECT 被拒，不修改權限。
+- Phase 8 已完成逐頁來源與視覺工程審核：原候選排除兩張 personality 警示、補林肯／格蘭特，ignored reviewed-bank.json 共 15 位。使用者明確批准修正旗標後重試，已單交易純 INSERT 45 列且唯讀驗證 PASS，Cloud 可用且未使用人物 15 位；不得再重跑此批次。完整 Cloud 遊戲 QA 仍需另行批准。不得將 Codex 審核冒稱人類／律師或全球權利保證。
+- 第一次匯入因漏加 CLI `--linked` 在 SQL 前遭拒；本次經使用者明確批准後，使用 `--linked --project-ref fgvajdnzrnptdjurhjfo` 完成原批次，詳見 `docs/phase8-cloud-import-report.md`。`db query --project-ref` 必須同時帶 `--linked`。`supabase/tests/verify_question_bank_access.sql` 僅唯讀，實際切換 anon／authenticated 驗證直接圖片 SELECT 被拒，不修改權限。
 - 圖片處理只限已核對來源：原檔 SHA-1、來源 revision 與 PNG SHA-256 保存，Sharp 作本機解碼與縮放，再以最小 RGB PNG encoder 去 Metadata；中性檔名、每張至多 128 KiB，不改前端設計。Vite server.fs.deny 封鎖題庫目錄，dist 不含原圖／審核 Metadata／SQL。
 - `source-review.json`、`prepare-reviewed-images.mjs` 預設不自動核准圖片；只有逐張檢視後的明確確認可 finalize。匯入 SQL 先驗 active category 與重複 Wikidata，與既有 UNIQUE 一同拒絕重跑，無 UPSERT／UPDATE／DELETE。先批准確切 SQL SHA-256 再執行，三個 Migration 均禁止改寫。
 - `.github/workflows/pages.yml` 只有 workflow_dispatch，避免 Push 意外發布；使用最小權限、固定 Action commit、Actions 公開 vars。尚未設定 GitHub 遠端 vars／Pages，也未 Commit／Push／執行 Workflow；所有後續發布與題庫寫入需再取得明確批准，免費 Pages 須確認 Repository 可用資格，不自動改公開或付費方案。

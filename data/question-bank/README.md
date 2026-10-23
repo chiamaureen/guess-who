@@ -1,6 +1,6 @@
 # Minimal Question Bank — Review Gate
 
-**最新狀態：** 已逐頁與逐張檢查原候選、保守排除拜登／柯林頓，再補林肯／格蘭特，備妥 15 位的本機匯入批次。詳見 [Phase 8 Review](../../docs/phase8-minimum-bank-review.md)；雲端匯入仍等待批准。以下保留準備工具說明，不代表可略過來源與視覺審核。
+**最新狀態：** 已逐頁與逐張檢查原候選、保守排除拜登／柯林頓，再補林肯／格蘭特，15 位批次已經使用者批准匯入 Cloud 並通過唯讀驗證。詳見 [Cloud Import Report](../../docs/phase8-cloud-import-report.md)；不得再次匯入同批次，完整遊戲 QA 需另行授權。以下保留準備工具說明，不代表可略過來源與視覺審核。
 
 原候選檔維持未審核狀態；正式待審批次在 ignored `prepared/review-20261023/reviewed-bank.json`，圖片／SQL 不進 `src`／`public` 或 dist。Vite 開發伺服器也拒絕直接存取此題庫目錄，不把原始 Metadata 交給玩家。
 
