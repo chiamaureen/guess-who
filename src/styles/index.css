@@ -515,7 +515,7 @@ h2 {
   color: var(--color-ink);
 }
 .inner-page h1 {
-  font-size: clamp(30px, 4vw, 56px);
+  font-size: clamp(30px, 4vw, 46px);
   font-weight: 600;
   line-height: 1.5;
   letter-spacing: -0.04em;
@@ -564,12 +564,12 @@ h2 {
 }
 .category-card:hover {
   border-color: var(--color-ink);
-  background: #f7f7f7;
+  /* background: #f7f7f7; */
 }
 .category-card.selected {
   border: 2px solid var(--color-ink);
   padding: 24px;
-  background: #faffcf;
+  /* background: #faffcf; */
 }
 .category-card input {
   position: absolute;
@@ -950,7 +950,7 @@ h2 {
     gap: 15px;
   }
   .footer-logo {
-    font-size: 15vw;
+    font-size: 13vw;
     margin-bottom: 8px;
   }
   .site-footer p {
@@ -971,7 +971,7 @@ h2 {
     font-size: 30px;
   }
   .page-description {
-    font-size: 12px;
+    font-size: 16px;
   }
   .category-grid {
     grid-template-columns: repeat(2, 1fr);

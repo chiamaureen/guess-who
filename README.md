@@ -40,7 +40,7 @@ Vite 設定 `base: '/guess-who/'`，React Router 採 HashRouter，網址如 `/gu
 
 參考 https://about.miroom.com/ 的大字、留白與鮮明色塊方向，以黑白為主、螢光黃綠點綴，搭配括號式標籤、圓形箭頭及原創 SVG 人物卡片。首頁、主持人及玩家頁採一致的響應式視覺；未重用參考網站的圖片或品牌素材。全站透過 Google Fonts 載入 Poppins 與 Montserrat，以 Poppins 為主、Montserrat 為備援；中文字形及字體載入失敗時使用系統備援字體。
 
-首頁 `.ticker` 使用 GSAP 與 Observer，參考 https://demos.gsap.com/demo/directional-marquee/：文字持續無縫循環，向下捲動時向左、向上捲動時向右，捲動後短暫加速再回到原速。`DirectionalMarquee` 使用 ResizeObserver 在字體載入及尺寸變更後更新週期，並於卸載時清理動畫和監聽；偏好減少動態效果時改為靜態文字。
+首頁 `.ticker` 使用 GSAP 與 Observer，參考 https://demos.gsap.com/demo/directional-marquee/：文字持續無縫循環。桌面（1025px 以上）向下捲動時向左、向上捲動時向右，捲動後短暫加速再回到原速；平板與手機（1024px 以下）固定向左、等速播放，不監聽頁面捲動。`DirectionalMarquee` 使用 ResizeObserver 在字體載入及尺寸變更後更新週期，透過 matchMedia 切換尺寸對應模式，並於卸載時清理動畫和監聽；偏好減少動態效果時改為靜態文字。
 
 建立與加入房間的首頁入口及建立房間表單提交按鈕使用 GSAP 磁吸效果，參考 https://demos.gsap.com/demo/magnetic-button-overwrite-modes/ 的 magnetic only：滑鼠移動時按鈕及文字跟隨，離開後彈性回位，使用 `overwrite: true` 避免動畫衝突。觸控、停用狀態與減少動態效果模式不啟用磁吸；保留原生連結與表單提交行為。「預覽加入房間」使用一般按鈕，不啟用磁吸、懸停位移或過渡動畫。
 

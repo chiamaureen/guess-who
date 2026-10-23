@@ -16,7 +16,12 @@ export function DirectionalMarquee() {
     if (!track || !group) return
 
     const media = gsap.matchMedia()
-    media.add('(prefers-reduced-motion: no-preference)', () => {
+    media.add({
+      motion: '(prefers-reduced-motion: no-preference)',
+      desktop: '(min-width: 1025px)',
+    }, context => {
+      if (!context.conditions?.motion) return
+
       const loop = gsap.fromTo(track, { xPercent: 0 }, {
         xPercent: -50,
         duration: group.getBoundingClientRect().width / 100,
@@ -28,7 +33,7 @@ export function DirectionalMarquee() {
       })
       let speedChange: gsap.core.Timeline | undefined
 
-      const observer = Observer.create({
+      const observer = context.conditions.desktop ? Observer.create({
         target: window,
         type: 'scroll',
         onChangeY: ({ deltaY }) => {
@@ -39,7 +44,7 @@ export function DirectionalMarquee() {
             .to(loop, { timeScale: direction * 6.25, duration: 0.2, ease: 'none' })
             .to(loop, { timeScale: direction, duration: 1, ease: 'none' }, '+=0.3')
         },
-      })
+      }) : undefined
 
       const resizeObserver = new ResizeObserver(() => {
         const width = group.getBoundingClientRect().width
@@ -48,7 +53,7 @@ export function DirectionalMarquee() {
       resizeObserver.observe(group)
 
       return () => {
-        observer.kill()
+        observer?.kill()
         resizeObserver.disconnect()
         speedChange?.kill()
       }

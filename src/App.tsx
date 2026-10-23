@@ -1,16 +1,31 @@
 import { useEffect } from 'react'
-import { HashRouter, Link, Route, Routes, useLocation } from 'react-router-dom'
+import { HashRouter, Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { HomePage } from './pages/HomePage'
 import { CreateRoomPage } from './pages/CreateRoomPage'
 import { JoinRoomPage } from './pages/JoinRoomPage'
 
 function ScrollManager() {
-  const { pathname, hash } = useLocation()
+  const { pathname, hash, search } = useLocation()
+  const navigate = useNavigate()
   useEffect(() => {
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView()
     else window.scrollTo(0, 0)
   }, [pathname, hash])
+
+  useEffect(() => {
+    if (pathname !== '/' || hash !== '#how-to-play') return
+
+    function syncHomeAtTop() {
+      if (window.scrollY <= 1) {
+        void navigate({ pathname, search, hash: '' }, { replace: true })
+      }
+    }
+
+    window.addEventListener('scroll', syncHomeAtTop, { passive: true })
+    return () => window.removeEventListener('scroll', syncHomeAtTop)
+  }, [pathname, hash, search, navigate])
+
   return null
 }
 
