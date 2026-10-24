@@ -1,6 +1,6 @@
 # Guess Who — Pages Release Checklist
 
-2026-10-24（Asia/Taipei）。**Polling MVP 本機準備完成，遠端設定與發布尚未驗證。** Phase 5、6 Cloud Acceptance 已 PASS，15 位政治人物與私有圖片已匯入；不需重跑匯入。當前結果、檔案與確切 Git 計畫見 [Phase 9 Report](phase9-mvp-release-report.md)。
+2026-10-24（Asia/Taipei）。**Polling MVP 已發布，公開唯讀 Smoke Test 12 項 PASS。** 網址：https://chiamaureen.github.io/guess-who/。Phase 5、6 Cloud Acceptance 已 PASS，15 位政治人物與私有圖片已匯入；不需重跑匯入。正式網址完整多人遊戲與實體手機尚待另行驗收，不能以本次唯讀測試取代。實際收據見 [Phase 9 Report](phase9-mvp-release-report.md)。
 
 ## 本次檢查
 
@@ -9,7 +9,7 @@
 - Workflow 固定 `VITE_ENABLE_REALTIME=false`；不需另建這個 Actions Variable。保留 Phase 7 程式碼，不部署其 Migration／Functions，不設定 ROOM_REALTIME_SIGNING_JWK。MVP 使用十秒基準 Polling，人數多時降頻、背景暫停、429 遵守 Retry-After；waiting 名單自動更新，playing 名單保留開場快照。
 - 本機 npm test／Build 通過，dist 僅前端；題庫、原圖、匯入 SQL 在 ignored prepared，不打包入 dist。
 - 正式網站 **Origin 是 https://chiamaureen.github.io，不含 /guess-who/**。本次對 room-system 與 game-engine 各做 OPTIONS：允許 Origin 皆 204、非法 Origin 皆 403；實際行為證實兩者目前的 Allowed Origins 已包含它，沒有讀取／展示／修改 Secret 值。
-- 未連 GitHub 管理 API，故 Repository 可見性／Pages 方案資格、遠端 Variables 與 Pages Source 狀態仍待使用者登入確認；沒有聲稱 Actions 已執行成功。
+- 本次經批准透過 GitHub API 唯讀確認 Repository=public、default branch=main、Source=workflow、自訂網域空白、兩個公開 Variables 與審核設定相符，不顯示 Key 值。Actions run 40056684258 的 build／deploy 均 success，HTTPS 已啟用。沒有更改 Repository 可見性、方案或遠端 Variables。
 
 ## Variables / Secrets
 
@@ -24,7 +24,9 @@ GitHub → Settings → Secrets and variables → Actions → **Variables**：
 
 Supabase 後端已存在：ROOM_SYSTEM_SIGNING_KEY、ROOM_SYSTEM_ALLOWED_ORIGINS，沿用即可；本次沒有新增或輪替需求。未來自訂網域或不同 GitHub owner 改 Origin 時再審查並另批准更改，不盲目加 wildcard。
 
-## 發布前的使用者操作
+## 發布流程與後續多人驗收
+
+以下 1～6 已由本次批准的發布完成。程式碼 20987cb 原已由使用者 Commit／Push；代理觸發一次 Workflow 並驗證成功，不重複提交程式碼。7～10 涉及新的雲端遊戲資料，本次不執行，仍須另取得明確授權。
 
 1. 題庫匯入與真正 Cloud 15 題驗收已通過。尚須確認兩個遠端 Actions Variables 與 Pages Source；本機 `.env.local` 不會自動成為 Actions 設定。
 2. 核對免費 Pages 資格；GitHub Free 一般需 public Repository，不自動更改可見性或購買方案。[官方說明](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
@@ -49,7 +51,7 @@ git push origin main
 ```
 
 5. Push 不會自動發布。GitHub Actions → Deploy GitHub Pages → Run workflow → main；如果環境有 reviewer，完成該次批准。這個手動步驟也要有明確的網站發布授權。
-6. Build／test／公開設定檢查／Pages deploy 全部成功後，讀取該次 deployment page_url。預期 https://chiamaureen.github.io/guess-who/，目前未宣稱已發布。
+6. Build／test／公開設定檢查／Pages deploy 全部成功後，核對實際 Pages URL。本次已驗證 https://chiamaureen.github.io/guess-who/ HTTP 200，靜態 JS／CSS／favicon 正常，桌面與手機 viewport 路由刷新正常。
 7. 使用新的匿名 Host profile，只選政治人物；實體手機與另一獨立 Player 由邀請加入，等待室加入／離開名單自動更新。不要清除或重置既有 Host 歷史。
 8. Host Start，兩 Player 不按手動刷新，自動取得第一題 PNG。逐題 Reveal→自動取得相同答案→Next→新圖片，完成 15 位不同人物，拒絕第 16 題，Finish 自動結束並停止 Polling。
 9. 檢查 Player 未揭曉 question 只有 id／number／revealed，無姓名、來源、人物 ID 或 Hash。Host／Player 在揭曉前後 reload 保持 Session、題號、狀態與主持權；手機背景／斷網後恢復自動補取。429 須依 Retry-After 等待，不放寬限流。
@@ -57,4 +59,4 @@ git push origin main
 
 ## 邊界
 
-本次沒有 Git add／Commit／Push、執行 Workflow、啟用 Pages、修改 Repository 可見性／方案、設定 GitHub Variables／Secrets、變更 Supabase Secrets 或匯入 Cloud 題庫。完整遊戲驗收仍依 [Cloud Acceptance Plan](cloud-15-question-acceptance.md) 另取得可辨識測試資料寫入授權。
+本次已獲批准執行一次 Pages Workflow 與發布紀錄 Git Commit／Push；未修改 Repository 可見性／方案、GitHub Variables／Secrets、Supabase Database／RPC／RLS／Secrets／Functions，沒有重新匯入題庫或部署 Phase 7。完整遊戲驗收仍依 [Cloud Acceptance Plan](cloud-15-question-acceptance.md) 另取得可辨識測試資料寫入授權。

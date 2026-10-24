@@ -2,9 +2,9 @@
 
 日期：2026-10-24（Asia/Taipei）。
 
-- **Phase 9：BLOCKED** — 本機發布準備完成；GitHub Variables／Pages Source／免費資格未確認，尚未取得本次 Commit／Push／正式發布批准。
+- **Phase 9 發布：DONE** — 使用者已批准限定發布；GitHub 設定唯讀驗證、Actions build／deploy 與公開唯讀 Smoke Test 均 PASS。正式網址完整多人驗收尚未執行。
 - **Phase 7：DEFERRED** — 保留全部程式碼、草案與測試，沒有 Cloud 部署。
-- **MVP Polling：READY** — 本機三人完整 15 題通過，不是正式 Pages 網址已驗收。
+- **MVP Polling：READY** — 本機三人完整 15 題通過；正式網址已可存取，但本次公開 Smoke 不新增雲端遊戲資料，不冒稱正式網址完整 15 題已驗收。
 
 ## 1. Git Diff 摘要
 
@@ -21,7 +21,7 @@
 | scripts/check-room-browser.mjs | 冷卻立即斷言，不假設網路早於五秒回應，等待可容許 Retry-After |
 | README.md、AGENTS.md、docs/pages-release-checklist.md、docs/phase7-realtime-report.md、本文件 | MVP 同步、延期邊界、發布與驗收步驟 |
 
-沒有修改 `supabase/functions/`、正式／草案 Migration、RLS、GRANT 或後端 Secrets。Phase 7 的原始碼仍保留，本次不部署它們、不重跑題庫匯入或 Cloud 遊戲測試。
+沒有修改 `supabase/functions/`、正式／草案 Migration、RLS、GRANT 或後端 Secrets。Phase 7 原始碼仍保留，不部署、不重跑題庫匯入或 Cloud 遊戲測試。上述 21 個檔案已由使用者提交並推送為 20987cb；本次沿用它發布，只補四份發布文件／狀態紀錄。
 
 ## 2. Polling 與限流評估
 
@@ -66,7 +66,8 @@
 | H-01 獨立重現腳本 | PASS | 20 次不同假 Credential 都 429，新增 rate rows=0、business actions=0 |
 | Workflow／公開設定 | PASS | YAML 可解析、僅 manual trigger、Realtime=false、build→deploy；實際本機設定指向指定 Project |
 | Git／dist 安全 | PASS | 137 工作檔、132 index 檔、298 歷史 blobs（含 Reflog）及 7 個 dist 檔，秘密模式 findings=0；環境檔／prepared 忽略，暫存檔=0，後端／Migration diff=0 |
-| Actions／正式 Pages／實體手機 | BLOCKED | 遠端 Variables、Pages Source、發布及正式網址驗收尚未執行 |
+| Actions／正式 Pages | PASS | run 40056684258，build／deploy 成功；公開網址 HTTP 200、十二項唯讀 Smoke 通過 |
+| 正式網址完整多人／實體手機 | NOT TESTED | 本次禁止 Supabase Database 寫入，不建立 QA Host／Player／Room；390px 是 Chrome viewport，不是實體手機 |
 
 首次 TypeScript build 發現 controller union narrowing，修正後通過。首次新 browser 的模擬 429 缺 CORS，未能正確讀 Retry-After；只修 harness 後 24 組通過。舊房間測試在等 roster 回應後才查五秒冷卻，低頻更新時可能已結束；改點擊後立即斷言。這些失敗沒有冒稱 PASS，也沒有更改 Cloud 來繞過。
 
@@ -83,11 +84,11 @@ Repository → Settings → Secrets and variables → Actions → **Variables**�
 | VITE_SUPABASE_URL | https://fgvajdnzrnptdjurhjfo.supabase.co |
 | VITE_SUPABASE_PUBLISHABLE_KEY | 從本機 `.env.local` 複製 Publishable Key，不展示真值 |
 
-不需自訂 Repository Secrets；平台提供 GITHUB_TOKEN／OIDC。Realtime flag 在 Workflow 固定 false，不需新增 Variable。先確認免費 Pages 資格，Settings → Pages → Source=GitHub Actions，再批准發布。**這些遠端設定本次未執行或假設成功**；本機沒有 GitHub CLI／已授權的管理 API。
+不需自訂 Repository Secrets；平台提供 GITHUB_TOKEN／OIDC。Realtime flag 在 Workflow 固定 false，不需新增 Variable。使用者已設定並批准發布；本次以 GitHub API 唯讀確認 public Repository、Source=workflow、無自訂網域、兩個 Variables 指向正確 Project 且公開 Key 與本機審核版本一致。不輸出或保存 Key 值，也沒有更改這些設定。無 GitHub CLI，改透過既有 Git credential helper 在記憶體內授權 GitHub API，不將登入憑證寫入 Repository 或命令參數。
 
-## 6. 待批准的 Git / Pages 指令
+## 6. 原審核 Git / Pages 計畫與本次執行
 
-以下**僅計畫，未執行**。目前 main、origin=chiamaureen/guess-who；只納入列明檔案：
+以下為原審核計畫，留存作範圍紀錄，不需重新執行整批 add／Commit。此次開始時程式碼未暫存，但後續偵測使用者已自行 Commit／Push 為 20987cb，local HEAD 與 origin/main 相符；因此不重複建立程式碼 Commit。本次只對四份發布文件執行新的紀錄 Commit／Push，不 amend、不 force、不新建分支。
 
 ```sh
 git status --short
@@ -107,7 +108,7 @@ git commit -m "feat: prepare polling MVP for GitHub Pages"
 git push origin main
 ```
 
-Push 不自動發布。另批准後，GitHub Actions → Deploy GitHub Pages → Run workflow → main，核對 jobs 與 github-pages environment。Workflow 只上傳 dist，沒有 Supabase db push／deploy／secrets 指令。預期網址 **https://chiamaureen.github.io/guess-who/**，以實際 deployment.page_url 為準，目前未發布。
+Push 不自動發布。本次經明確批准，以 GitHub API 對 main 送出一次 pages.yml workflow_dispatch；再次核對 GitHub main 與審核 SHA 相符才觸發。Workflow 只上傳 dist，沒有 Supabase db push／deploy／secrets 指令。實際網址 **https://chiamaureen.github.io/guess-who/** 已發布且唯讀驗證通過。
 
 ## 7. 發布後驗收與 Phase 7 待辦
 
@@ -115,4 +116,28 @@ Push 不自動發布。另批准後，GitHub Actions → Deploy GitHub Pages →
 
 Phase 7 待完成：可信 ES256 kid／私鑰管理與 Cloud 授權、ROOM_REALTIME_SIGNING_JWK、草案審核／Migration 部署、兩個 Functions 更新、真正 Supabase Realtime 多人／重連／過期與撤銷驗收，都不包含在本次發布。
 
-**下一步：確認兩個 GitHub Variables、Pages Source 與免費資格後，明確批准本清單 Commit／Push／手動 Pages 發布及必要的新 QA 房間測試。** 本次沒有執行這些遠端寫入。
+**下一步：另行批准正式網址的新匿名 QA Host／Players／房間與完整 15 題資料寫入測試。** 本次發布授權禁止 Supabase Database 異動，因此不重跑遊戲、不重置任何歷史。可先修正下列過時文案；不因此擴大這次程式碼發布範圍。
+
+## 8. Cloud Publication Receipt
+
+| 項目 | 實際結果 |
+| --- | --- |
+| 發布 Commit | 20987cb1ae67df5d7b6916c013d79c91a5735c81，使用者原已 Commit／Push；沿用、不重複提交 |
+| Repository | chiamaureen/guess-who，public、main；沒有變更可見性、方案或分支 |
+| Workflow run | [40056684258](https://github.com/chiamaureen/guess-who/actions/runs/40056684258)，workflow_dispatch，completed／success |
+| Build job | success；npm ci、公開設定驗證、npm test、npm run build、configure-pages、artifact upload 全部成功 |
+| Deploy job | success；github-pages environment 的 Deploy step 成功 |
+| 正式網址 | https://chiamaureen.github.io/guess-who/；實際 HTTP 200，Source=workflow、CNAME 空、https_enforced=true |
+| 重新本機測試 | 231 項 PASS；TypeScript／Edge TypeScript／Build PASS；另以 VITE_ENABLE_REALTIME=false 重建通過，沒有 lint script |
+| 發布前安全 | 137 個工作檔／304 個歷史 blobs 掃描無發現，環境檔未追蹤；另檢私鑰、私有 JWK、硬編碼 Token／Backend Key 與 dist，無發現；正式／草案 Migration 與 Functions 無異動 |
+| 公開 Smoke | 12 項 PASS、0 FAIL；Chrome 155，1440px／390px，沒有 fixtures 或後端重導向 |
+| 真實 Cloud 唯讀 | categories 四次 HTTP 200；兩個 Function 的正式 Origin OPTIONS 204、非法 Origin 403 |
+| Realtime／資料寫入 | 發布 JS 內 flag=false，ticket=0、WebSocket=0、Supabase 寫入嘗試=0、瀏覽器 runtime errors=0；無 QA Host／Player／Room 新增 |
+
+十二項 Smoke 涵蓋：公開 HTML／標題／base、JS／CSS／favicon 與秘密模式檢查、CORS、兩種 viewport 的首頁導覽／how-to-play 回頂 URL、Host 七分類真實讀取／分類選擇／刷新、Join 表單大小寫與路由刷新、無 Session 邀請路由刷新，以及零寫入／零 Realtime／無錯誤總檢。
+
+**非阻斷待辦：** 首頁仍有「正式遊戲尚未開放」及加入頁仍有「等待室名單需手動更新」的過時文案。實際已有遊戲／Polling；本次記錄此 Low 文案問題，不另改已審核發布程式碼。未發現本次範圍內 Critical／High；不是全面滲透測試保證。
+
+發布收據（均不含憑證）：`/tmp/guess-who-phase9-github-preflight.json`、`/tmp/guess-who-phase9-actions-status.json`、`/tmp/guess-who-phase9-public-smoke/results.json`；公開頁截圖在同一 Smoke 目錄。API Pages status 欄位為 null，沒有誤當成 legacy built 狀態；成功依據是明確的 Actions jobs success 與真實公開 HTTP／瀏覽器結果。
+
+本次沒有 Supabase Cloud schema／RPC／RLS／GRANT／Secrets／Functions 或業務資料寫入，沒有部署 Phase 7，也沒有刪除或重置歷史。

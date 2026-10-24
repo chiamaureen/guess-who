@@ -62,7 +62,7 @@
 - 第一次匯入因漏加 CLI `--linked` 在 SQL 前遭拒；本次經使用者明確批准後，使用 `--linked --project-ref fgvajdnzrnptdjurhjfo` 完成原批次，詳見 `docs/phase8-cloud-import-report.md`。`db query --project-ref` 必須同時帶 `--linked`。`supabase/tests/verify_question_bank_access.sql` 僅唯讀，實際切換 anon／authenticated 驗證直接圖片 SELECT 被拒，不修改權限。
 - 圖片處理只限已核對來源：原檔 SHA-1、來源 revision 與 PNG SHA-256 保存，Sharp 作本機解碼與縮放，再以最小 RGB PNG encoder 去 Metadata；中性檔名、每張至多 128 KiB，不改前端設計。Vite server.fs.deny 封鎖題庫目錄，dist 不含原圖／審核 Metadata／SQL。
 - `source-review.json`、`prepare-reviewed-images.mjs` 預設不自動核准圖片；只有逐張檢視後的明確確認可 finalize。匯入 SQL 先驗 active category 與重複 Wikidata，與既有 UNIQUE 一同拒絕重跑，無 UPSERT／UPDATE／DELETE。先批准確切 SQL SHA-256 再執行，三個 Migration 均禁止改寫。
-- `.github/workflows/pages.yml` 只有 workflow_dispatch，避免 Push 意外發布；使用最小權限、固定 Action commit、Actions 公開 vars。尚未設定 GitHub 遠端 vars／Pages，也未 Commit／Push／執行 Workflow；所有後續發布與題庫寫入需再取得明確批准，免費 Pages 須確認 Repository 可用資格，不自動改公開或付費方案。
+- `.github/workflows/pages.yml` 只有 workflow_dispatch，避免 Push 意外發布；使用最小權限、固定 Action commit、Actions 公開 vars。2026-10-24 使用者已設定並批准 Phase 9 發布：public Repository、兩個 Variables、Source=workflow、無自訂網域已唯讀核對。MVP 20987cb 已發布；後續部署與題庫寫入仍須另批准，不改 Repository 可見性或付費方案。
 
 ## Phase 7 Realtime 邊界
 
@@ -84,4 +84,5 @@
 - 每個 Lobby／Game 共用單一 createRoomPolling，完成後 setTimeout、同時最多一個讀取；背景／離線暫停，回前景／online 恢復，離開／finished／失效停止。callback ref 避免重新 render 重建，mutation epoch 防止舊回應覆蓋。
 - 來源 get-room-state gate 每分鐘 30 次，room-state／game-state／image 共用。MVP 基準十秒、較大房以（玩家數＋Host）／每分鐘 18 次總狀態預算降頻；三人同來源約 18 次／分，不保證來源碰撞、多分頁或極快換題不會 429。依 Retry-After（秒或 HTTP 日期）及指數退避恢復，不改 H-01 cap／可信來源。
 - 相容已部署 Phase 6 DTO：初次最多兩次 API；waiting 通常一次 room-state，playing 通常一次 game-state，開場轉換額外讀 game。遊戲中的玩家名單保留開場快照，避免每輪再加一次 roster API；沒有答案或授權判斷搬到前端。
-- 本次只允許前端／測試／發布文件與 Workflow 準備，不修改 Cloud Migration／RLS／GRANT／Secrets／Functions、不 Commit／Push／執行 Pages。GitHub Variables、Pages Source、正式網址多人驗收尚未執行；任何發布需明確批准。詳見 docs/phase9-mvp-release-report.md。
+- 準備階段原本不允許 Commit／Push／Pages。2026-10-24 使用者另批准已審核 MVP 的 Git 與 Pages 發布；偵測程式碼已由使用者 Commit／Push 為 20987cb，沿用而不重複提交。Actions run 40056684258 的 build／deploy 成功，正式網址 https://chiamaureen.github.io/guess-who/，十二項唯讀 Smoke PASS；本次僅補發布文件 Commit／Push，不修改 Supabase Database／RPC／RLS／GRANT／Secrets／Functions，不部署 Phase 7。
+- 此次公開 Smoke 僅真實 GET categories／OPTIONS 與靜態網站，不攔截改用 fixtures，也不建立 QA Host／Player／Room。真實公開網址 15 題與實體手機測試 NOT TESTED；雲端業務寫入需另明確授權，不因前次驗收或本次 Pages 發布而自動重跑。首頁／加入頁仍有過時未開放／手動刷新文案，記為非阻斷待辦，不偷偷更動本次已審核程式碼。詳見 docs/phase9-mvp-release-report.md。
