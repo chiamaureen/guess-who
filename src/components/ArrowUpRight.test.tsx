@@ -7,33 +7,36 @@ import { Portraits } from './Portraits'
 import { Layout } from './Layout'
 import { HomePage } from '../pages/HomePage'
 
-describe('text-presentation up-right arrows', () => {
-  it('renders the exact arrow and VS15 code points without changing fonts', () => {
+describe('SVG up-right arrows', () => {
+  it('renders a decorative vector arrow without emoji or font dependency', () => {
     const markup = renderToStaticMarkup(<ArrowUpRight />)
     const text = markup.replace(/<[^>]*>/g, '')
-    expect(Array.from(text, character => character.codePointAt(0))).toEqual([0x2197, 0xfe0e])
+    expect(text).toBe('')
+    expect(markup).toContain('<svg')
+    expect(markup).toContain('viewBox="0 0 24 24"')
+    expect(markup).toContain('stroke="currentColor"')
+    expect(markup).toContain('d="M7 17 17 7M7 7h10v10"')
     expect(markup).toContain('aria-hidden="true"')
-    expect(markup).toContain('not-italic')
     expect(markup).not.toContain('font-family')
     expect(markup).not.toContain('\uFE0F')
   })
-  it('keeps the existing icon prop and appends the text presentation selector', () => {
+  it('normalizes the existing up-right icon prop to the SVG component', () => {
     const markup = renderToStaticMarkup(<MagneticButton icon="↗">建立房間</MagneticButton>)
     expect(markup).toContain('建立房間')
-    expect(markup).toContain('\u2197\uFE0E')
-    expect(markup).not.toMatch(/\u2197(?!\uFE0E)/u)
+    expect(markup).toContain(renderToStaticMarkup(<ArrowUpRight />))
+    expect(markup).not.toContain('\u2197')
   })
   it('does not change other magnetic button icons', () => {
     const markup = renderToStaticMarkup(<MagneticButton icon="→">加入房間</MagneticButton>)
     expect(markup).toContain('→')
     expect(markup).not.toContain('<svg')
   })
-  it('uses VS15 on every up-right arrow in the homepage, header, footer, and portrait cards', () => {
+  it('uses the vector arrow throughout the homepage, header, footer, and portrait cards', () => {
     for (const element of [<MemoryRouter><HomePage /></MemoryRouter>, <MemoryRouter><Layout /></MemoryRouter>, <Portraits />]) {
       const markup = renderToStaticMarkup(element)
-      expect(markup).toContain('\u2197\uFE0E')
-      expect(markup).not.toMatch(/\u2197(?!\uFE0E)/u)
-      expect(markup).not.toContain('\u2197\uFE0F')
+      expect(markup).toContain(renderToStaticMarkup(<ArrowUpRight />))
+      expect(markup).not.toContain('\u2197')
+      expect(markup).not.toContain('\uFE0F')
     }
   })
 })

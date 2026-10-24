@@ -28,8 +28,9 @@ export async function invokeGameApi(action: string, input: Record<string, unknow
 export async function loadGameImage(code: string, questionId: string, credentials: Record<string, string>): Promise<Blob> {
   const response = await requestRoomApi('get-question-image', { roomCode: code, questionId }, credentials, 'game-engine')
   if (!response.ok) await readApiResponse(response)
-  if (response.headers.get('content-type') !== 'image/png') throw new Error('圖片格式錯誤。')
+  const mime = response.headers.get('content-type')
+  if (!mime || !['image/png', 'image/jpeg', 'image/webp'].includes(mime)) throw new Error('圖片格式錯誤。')
   const image = await response.blob()
-  if (!image.size || image.size > 524288) throw new Error('圖片大小無效。')
+  if (!image.size || image.size > (mime === 'image/webp' ? 307200 : 524288)) throw new Error('圖片大小無效。')
   return image
 }

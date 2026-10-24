@@ -10,7 +10,7 @@ let chromium
 try {({chromium}=await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright'))}
 catch {console.log('BLOCKED: Playwright unavailable; no browser checks passed.');process.exitCode=2}
 if(chromium) {
-  const fixture=await startBrowserFixture({port:0,origin,gamePeople:30})
+  const fixture=await startBrowserFixture({port:0,origin,gamePeople:30,imageFormat:process.env.QA_IMAGE_FORMAT ?? 'png'})
   let browser
   const contexts=[]
   const checks=[]

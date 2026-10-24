@@ -1,6 +1,7 @@
 import { deriveToken, hashToken, validToken } from '../room-system/crypto.ts'
 import { readBody, RoomError, safeLobby } from '../room-system/handler.ts'
 import type { Backend, HandlerConfig, RateLimitRequest } from '../room-system/handler.ts'
+import { privateImageMime } from './images.ts'
 
 type Payload = Record<string, unknown>
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -86,8 +87,10 @@ export function createGameHandler(config: HandlerConfig, backend: Backend) {
       if (action === 'get-question-image') {
         ensure(typeof result?.png === 'string' && result.png.length <= 710000)
         const bytes = Uint8Array.from(atob(result.png.replace(/\s/g, '')), character => character.charCodeAt(0))
-        headers.set('Content-Type', 'image/png')
-        headers.set('Content-Disposition', 'inline; filename="photo.png"')
+        const mime = privateImageMime(bytes)
+        ensure(mime)
+        headers.set('Content-Type', mime)
+        headers.set('Content-Disposition', `inline; filename="photo.${mime === 'image/webp' ? 'webp' : mime === 'image/jpeg' ? 'jpg' : 'png'}"`)
         return new Response(bytes, { status: 200, headers })
       }
       return new Response(JSON.stringify({ data: action === 'reset-question-history' ? { reset: result.reset === true } : safeState(result, !!host) }), { status: 200, headers })

@@ -39,3 +39,21 @@ export async function normalizeQuestionImage(source) {
   }
   throw new Error('PNG_TOO_LARGE')
 }
+
+export async function normalizeQuestionWebp(source) {
+  if (!source.length || source.length > 32 * 1024 * 1024) throw new Error('SOURCE_TOO_LARGE')
+  const metadata = await sharp(source, { limitInputPixels: 40000000, failOn: 'error' }).metadata()
+  if (!['jpeg', 'png', 'webp'].includes(metadata.format) || (metadata.pages ?? 1) !== 1) throw new Error('UNSUPPORTED_OR_ANIMATED_IMAGE')
+  for (const edge of [1024, 800, 640, 480]) {
+    const webp = await sharp(source, { limitInputPixels: 40000000, failOn: 'error' }).rotate()
+      .resize({ width: edge, height: edge, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' }).toColourspace('srgb').webp({ quality: 82, effort: 4 }).toBuffer()
+    if (webp.length > 300 * 1024) continue
+    const decoded = sharp(webp, { limitInputPixels: 1048576, failOn: 'error' })
+    const output = await decoded.metadata()
+    await decoded.stats()
+    if (output.format !== 'webp' || output.exif || output.icc || output.xmp || output.orientation || output.pages > 1 || Math.max(output.width, output.height) > 1024) throw new Error('UNSAFE_WEBP_OUTPUT')
+    return { webp, width: output.width, height: output.height, quality: 82 }
+  }
+  throw new Error('WEBP_TOO_LARGE')
+}

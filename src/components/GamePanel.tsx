@@ -5,6 +5,7 @@ import type { GameAction, GameState } from "../types/game-engine";
 import type { LobbyState } from "../types/game";
 import { Feedback } from "./Feedback";
 import { RoomApiError } from "../lib/room-api";
+import { ImageCredits } from "./ImageCredits";
 
 export function GamePanel({
   code,
@@ -161,25 +162,7 @@ export function GamePanel({
                   : "正確答案"}
               </p>
               <h3>{question.answer}</h3>
-              {question.attribution && (
-                <small>
-                  {question.attribution.author} · {question.attribution.license}{" "}
-                  · {question.attribution.text}
-                  {/^https:\/\//.test(question.attribution.source) && (
-                    <>
-                      {" "}
-                      ·{" "}
-                      <a
-                        href={question.attribution.source}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        圖片來源
-                      </a>
-                    </>
-                  )}
-                </small>
-              )}
+              {question.attribution && <ImageCredits credit={question.attribution} />}
             </div>
           ) : (
             <p className="game-answer" role="status">

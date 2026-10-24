@@ -65,8 +65,15 @@
 - `.github/workflows/pages.yml` 只有 workflow_dispatch，避免 Push 意外發布；使用最小權限、固定 Action commit、Actions 公開 vars。2026-10-24 使用者已設定並批准 Phase 9 發布：public Repository、兩個 Variables、Source=workflow、無自訂網域已唯讀核對。MVP 20987cb 已發布；後續部署與題庫寫入仍須另批准，不改 Repository 可見性或付費方案。
 
 - 2026-10-24 運動員題庫 v2 最新要求為 link-only：新批次只準備圖片 URL／來源／作者／授權，不新增 game_image_assets、不用 Storage、不刪既有圖片。所有候選仍未核准，不得使用舊 PNG 匯入器直接匯入。現有 Cloud 引擎仍依賴私有 asset；新的 URL 讀圖／答案隔離架構需另審查與批准，不直接把含姓名的圖片網址給未揭曉 Player。尚未匯入或停用政治人物，七分類與題目／C 歷史保留；來源、缺圖與阻擋見 docs/phase8-athletes-v2-plan.md。
+- 運動員本機審核：`npm run review:athletes` 僅開 127.0.0.1:5188 的維護頁，固定靜態檔／Host／Origin／記憶體 Session 保護，不是正式 Node Backend。以候選 Markdown＋scope 為權威，sidecar 只補相符 Metadata；輸出 ignored、0600 reviewed JSON，單 writer lock／revision／原子寫入。圖片 GET 僅 Wikimedia HTTPS、禁止 redirect／SSRF、8 MiB／40M pixels／真實解碼，只有單張記憶體預覽、不存圖。429 停止並尊重 Retry-After；不可為查驗繞過限流或自動核准。APPROVE 須人工人物／來源／分類／授權與條件五確認、有效查證、備註、審核者；15 位唯一且有效核准只准備 Metadata，不代表 Cloud 寫入批准／引擎相容。詳見 docs/phase8-athletes-image-review.md，不能把合成 browser 測試的15位核准當成真實題庫。
+- 最新使用者另要求69位直接啟用並將圖片實存 PostgreSQL，取代先前 link-only 意向；此為批次請求，不得冒填未做過的授權／人物查證。`prepare-athlete-assets.mjs` 僅本機 staging，已完成2張後因 Kyrie 原圖45.4M pixels超過40M上限停止；未匯入、未改審核決定。現有舊匯入器僅 PD／CC0，67張其他授權須補來源／署名相容性，不可偽造 license/review。完整狀態見 docs/phase8-athletes-private-import-request.md；尚無執行用207列SQL或雲端題庫異動。
 
 ## Phase 7 Realtime 邊界
+
+- 最新 Phase 8 要求改為私有 PostgreSQL WebP，優先於前述 link-only／僅 PNG 的準備描述。69 張本機技術轉換／完整解碼 PASS，不等於權利核准；124 位盤點最終 69 PENDING／55 MISSING_IMAGE，含排除銅像及新 Anthony Edwards 待審候選。不得把技術收據、合成 fixtures 或 presentationReviewed 旗標當作授權證據。詳見 docs/phase8-webp-acceptance.md。
+- 新 WebP 僅單一無 Metadata lossy VP8、品質82、最長邊1024、300 KiB，原圖下載32 MiB／解碼40M上限不變；超限取已比對原圖 SHA／URL／revision 的官方 Commons rendition，另記下載 SHA-256，禁止假稱縮圖 SHA 是原圖 SHA。圖片仍中性檔名／ignored，不進 bundle。
+- 20261024120000_game_image_formats.sql 只在 migration-drafts：INVОKER／空 search_path helper、service_role-only、替換 image CHECK；png bytea／RPC png key 保留舊名但可存新格式。沒有部署。PNG 舊限制不變，新增 metadata-free JPEG／WebP；不能在新後端／前端通過並另獲批准前先啟用 WebP 題庫。
+- 新格式須完整結構化作者／來源／授權版本／條款／處理方式／原始聲明／證據；BY-SA 沿用同一授權。UI 只在 Host／揭曉後提供完整來源，未揭曉 Player 的 Edge DTO 仍無署名或姓名。延後署名的法律相容性尚未確認，原有政治人物及歷史保持不變；目前不產出真實207列SQL，不自動核准／部署／寫Cloud／Commit／Push。
 
 - 發布順序已調整：Phase 7 DEFERRED，先發布 Phase 9 Polling MVP。以下是保留的 Phase 7 設計，不是目前正式啟用的同步方式。
 

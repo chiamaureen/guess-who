@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { HomePage } from './HomePage'
 import { CreateRoomPage } from './CreateRoomPage'
 import { JoinRoomPage } from './JoinRoomPage'
+import { ArrowUpRight } from '../components/ArrowUpRight'
 
 describe('page entry points', () => {
   it('links the homepage to both room flows', () => {
@@ -19,7 +20,8 @@ describe('page entry points', () => {
     expect(actions?.match(/button-static/g)).toHaveLength(2)
     expect(actions).toContain('href="/host"')
     expect(actions).toContain('href="/join"')
-    expect(actions).toContain('\u2197\uFE0E')
+    expect(actions).toContain(renderToStaticMarkup(<ArrowUpRight />))
+    expect(actions).not.toContain('\u2197')
     expect(actions).not.toContain('magnetic')
   })
   it('loads genuine categories asynchronously without hardcoded or mock fallback categories', () => {

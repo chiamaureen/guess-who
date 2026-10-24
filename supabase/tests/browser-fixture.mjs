@@ -6,7 +6,7 @@ import { createRoomHandler, RoomError } from '../functions/room-system/handler.t
 import { createGameHandler } from '../functions/game-engine/handler.ts'
 import { seedGameFixtures } from './game-fixture.mjs'
 
-export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.0.1:5177', gamePeople = 0, legacyGameDto = false } = {}) {
+export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.0.1:5177', gamePeople = 0, legacyGameDto = false, imageFormat = 'png' } = {}) {
   const database = new PGlite()
   await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;')
   await database.exec(await readFile(new URL('./realtime-platform.sql', import.meta.url), 'utf8'))
@@ -15,7 +15,17 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
   for (const filename of migrations) await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))
   if (!migrations.includes('20261023093000_room_system.sql')) await database.transaction(async transaction => transaction.exec(await readFile(new URL('../migration-drafts/20261023093000_room_system.sql', import.meta.url), 'utf8')))
   await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))
-  if (gamePeople) await seedGameFixtures(database, gamePeople)
+  if (!['png', 'webp', 'jpeg'].includes(imageFormat)) throw new Error('Invalid local fixture format')
+  if (imageFormat !== 'png') {
+    await database.exec(await readFile(new URL('../migration-drafts/20261024120000_game_image_formats.sql', import.meta.url), 'utf8'))
+    const { fixturePng } = await import('./game-fixture.mjs')
+    const { normalizeQuestionWebp } = await import('../../scripts/lib/question-images.mjs')
+    const { default: sharp } = await import('sharp')
+    const image = imageFormat === 'webp' ? (await normalizeQuestionWebp(fixturePng())).webp : await sharp(fixturePng()).jpeg().toBuffer()
+    if (gamePeople) await seedGameFixtures(database, gamePeople, image)
+    const credit = JSON.stringify({ format: 'guess-who-image-rights-v1', attribution: 'LOCAL synthetic credit only', licenseVersion: '4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/', derivativeLicenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/', modifications: 'WebP resize and metadata removal', originalNotices: 'Synthetic fixture only', evidenceUrl: 'https://commons.wikimedia.org/w/index.php?title=File:SECRET-NAME.jpg&oldid=123', checkedAt: '2026-10-24' })
+    await database.query('UPDATE public.celebrities SET image_license=$1,image_attribution=$2', ['CC BY-SA 4.0', credit])
+  } else if (gamePeople) await seedGameFixtures(database, gamePeople)
   const signingKey = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')
   const rpc = (name, parameters) => database.transaction(async transaction => {
     await transaction.exec('SET LOCAL ROLE service_role')

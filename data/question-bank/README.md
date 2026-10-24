@@ -2,6 +2,10 @@
 
 ## 運動員 v2（2026-10-24 最新要求）
 
+**最新變更：** 使用者其後改回 69 位 approved＋私有 PNG 入庫請求，取代下方 link-only 意向。現僅本機準備 2 張後因大圖上限停止，尚未寫 Cloud；原匯入器與授權／署名支援仍有阻擋，見[私有圖片入庫請求](../../docs/phase8-athletes-private-import-request.md)。不得把這份啟用請求冒充已完成 69 張的查證或匯入。
+
+已建立[本機逐張審核工具](../../docs/phase8-athletes-image-review.md)：`npm run review:athletes` → `http://127.0.0.1:5188`。提供照片與來源／授權證據、APPROVE／REJECT／PENDING、備註與原子儲存。輸出 ignored `prepared/athletes-local-review/phase8-athletes-reviewed.json` 及摘要；只有至少 15 位不同身分有效 APPROVED 才能準備 Metadata 批次，不會自動匯入。真實名單目前 0 APPROVED／0 REJECTED／69 PENDING／55 MISSING_IMAGE；16 張技術檢查後遇 429 停止，不宣稱全量通過。
+
 新批次改為 **link-only**：先整理圖片 URL／作者／授權，不新增圖片二進位資料、不使用 Storage。既有政治人物私有圖片及已部署引擎保留；現有引擎仍需要私有圖片 asset，不能宣稱只存 URL 即可出題。新人物及舊題庫停用均未寫入 Cloud，詳見 [運動員 v2 計畫](../../docs/phase8-athletes-v2-plan.md) 與[候選表](../../docs/phase8-athletes-v2-candidates.md)。
 
 `prepare-athlete-review.mjs <new-directory>` 只讀公開 Metadata、所有 review flags=false；`plan-athlete-bank.mjs <manifest> <readonly-impact-json>` 只產生本機變更預覽。不要使用下方舊 PNG 匯入流程匯入 link-only 批次。Google 圖片第一筆遭機器人驗證，不能把 Commons 候選冒稱已完成 Google 核驗。
@@ -41,3 +45,7 @@ node scripts/prepare-question-import.mjs data/question-bank/prepared/candidates-
 本次預計新增 15 celebrities＋15 關聯＋15 私有圖片，既有 categories 不增不改。SQL hash 與批准範圍見驗收報告；原圖 Public Domain 聲明可能具地域範圍，改為代言／廣告或其他用途需重審，不將工程審核當成全球法律保證。
 
 官方來源：[Imageinfo](https://www.mediawiki.org/wiki/API:Imageinfo)、[Commons machine-readable data](https://commons.wikimedia.org/wiki/Commons:Machine-readable_data/en)。
+# WebP 最新準備狀態
+
+2026-10-24：圖片來源重新盤點124位，69張原始候選已完成本機 WebP 技術處理；目前0位完整核准，不可匯入。工具與實際統計見 `docs/phase8-webp-acceptance.md`，逐人表見 `docs/phase8-athletes-image-inventory.md`。新格式相容SQL僅在 migration-drafts，未修改舊Migration、政治人物或雲端資料。技術轉檔成功不代表圖片適合作為題目或已獲權利許可。
+

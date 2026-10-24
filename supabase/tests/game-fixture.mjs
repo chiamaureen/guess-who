@@ -37,13 +37,13 @@ export function fixturePng() {
   return Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), pngChunk('IHDR', header), pngChunk('IDAT', deflateSync(Buffer.concat(rows))), pngChunk('IEND', Buffer.alloc(0))])
 }
 
-export async function seedGameFixtures(database, count = 30) {
+export async function seedGameFixtures(database, count = 30, image = fixturePng()) {
   for (let index = 1; index <= count; index++) {
     const id = `60000000-0000-4000-8000-${String(index).padStart(12, '0')}`
     await database.query(`INSERT INTO public.celebrities(id,name_zh,name_en,subject_type,image_url,image_source,image_author,image_license,image_attribution,is_approved)
       VALUES($1,$2,$3,'fictional_character','https://fixture.invalid/SECRET-NAME.png','https://fixture.invalid/SECRET-NAME','Original test code','CC0-1.0','LOCAL synthetic fixture only',true) ON CONFLICT DO NOTHING`, [id, `隔離測試人物 ${index}`, `PRIVATE ANSWER ${index}`])
     await database.query('INSERT INTO public.celebrity_categories(celebrity_id,category_id) VALUES($1,$2),($1,$3) ON CONFLICT DO NOTHING', [id, actor, singer])
-    await database.query('INSERT INTO public.game_image_assets(celebrity_id,png,is_approved) VALUES($1,$2,true)', [id, fixturePng()])
+    await database.query('INSERT INTO public.game_image_assets(celebrity_id,png,is_approved) VALUES($1,$2,true)', [id, image])
   }
 }
 

@@ -1,0 +1,10 @@
+{
+  "checkedOn": "2026-10-24",
+  "reviewKind": "Codex engineering contact-sheet observations, not legal approval",
+  "observations": [
+    { "name": "郭羿含", "source": "https://commons.wikimedia.org/wiki/File:%E9%83%AD%E7%BF%8C%E5%90%AB%E9%8A%85%E5%83%8F.jpg", "decision": "REJECTED", "reason": "銅像而非運動員本人照片；涉及雕塑額外權利，須替換，不得因轉檔成功變成可用題目。" },
+    { "name": "鄧宇成", "decision": "PENDING", "reason": "與魏均珩使用完全相同合照，目標人物不明確；本次禁止自動裁臉，須另選單人照片或完成人物辨識審核。" },
+    { "name": "魏均珩", "decision": "PENDING", "reason": "與鄧宇成使用完全相同合照，目標人物不明確；本次禁止自動裁臉，須另選單人照片或完成人物辨識審核。" },
+    { "name": "李智凱", "decision": "PENDING", "reason": "來源為多人物合照，含其他具辨識度人物；須確認照片適合作為單一人物猜題，不自動裁切或核准。" }
+  ]
+}

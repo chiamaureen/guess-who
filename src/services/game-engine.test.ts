@@ -122,6 +122,18 @@ describe('game engine session boundary', () => {
   })
 })
 describe('game DTO and image contracts', () => {
+  it('accepts WebP, legacy PNG and JPEG responses with format-specific size caps', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://abcdefghijklmnopqrst.supabase.co')
+    vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_fixture')
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    for (const mime of ['image/webp', 'image/png', 'image/jpeg']) {
+      fetchMock.mockResolvedValueOnce(new Response(new Uint8Array(128), { headers: { 'content-type': mime } }))
+      expect((await loadGameImage(code, questionId, { 'x-player-session': playerToken })).type).toBe(mime)
+    }
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array(307201), { headers: { 'content-type': 'image/webp' } }))
+    await expect(loadGameImage(code, questionId, {})).rejects.toThrow('圖片大小')
+  })
   it('strips hidden answer, attribution and history from unrevealed Player data', () => {
     const parsed = parseGameState({ ...state('player'), question: { ...state('player').question, answer: 'LEAK', attribution: { source: 'LEAK' } }, historyRevision: 'LEAK', token: 'LEAK' })
     expect(JSON.stringify(parsed)).not.toContain('LEAK')

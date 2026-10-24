@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess Who — 本機運動員圖片審核</title>
+    <link rel="stylesheet" href="/style.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header><p>GUESS WHO / LOCAL REVIEW</p><h1>運動員圖片審核</h1><p>只存連結與審核紀錄，不寫入雲端、不儲存圖片檔。連線成功不等於取得授權。</p></header>
+    <main>
+      <section aria-label="審核統計"><p id="summary" aria-live="polite"></p><p id="gate"></p><button id="check-all" type="button">檢查尚未檢查的圖片</button> <a id="export" href="/api/export" download="phase8-athletes-reviewed.json">下載審核 JSON</a><p id="job" aria-live="polite"></p></section>
+      <p id="priority"></p>
+      <nav aria-label="候選導覽"><button id="previous" type="button">上一位</button><label>人物 <select id="candidate"></select></label><button id="next" type="button">下一位</button></nav>
+      <p id="message" role="status" aria-live="polite"></p>
+      <article>
+        <section class="photo-panel"><h2 id="name"></h2><p id="identity"></p><div id="photo"></div><p id="image-check"></p><button id="check" type="button">檢查／重新讀取圖片</button><p id="warnings"></p></section>
+        <form id="review-form">
+          <p id="qualification"></p>
+          <label>圖片原始 URL（目前限定 Wikimedia）<input name="imageUrl" type="url"></label>
+          <label>原始圖片來源頁<input name="sourcePage" type="url"></label><a id="source-link" target="_blank" rel="noopener noreferrer">開啟來源頁核對</a>
+          <label>人物 QID<input name="wikidataId" placeholder="Q12345"></label>
+          <label>人物身分來源<input name="personSource" type="url"></label><a id="person-link" target="_blank" rel="noopener noreferrer">開啟人物來源</a>
+          <label>入選名單／現役資格來源<input name="rosterSource" type="url"></label><a id="roster-link" target="_blank" rel="noopener noreferrer">開啟名單來源</a>
+          <label>作者／攝影者<input name="author"></label>
+          <label>授權名稱<input name="license"></label>
+          <label>授權條款 URL<input name="licenseTermsUrl" type="url"></label><a id="terms-link" target="_blank" rel="noopener noreferrer">閱讀授權條款</a>
+          <label>該張圖片的授權證據 URL<input name="evidenceUrl" type="url"></label><a id="evidence-link" target="_blank" rel="noopener noreferrer">開啟特定圖片授權證據</a>
+          <p>Google 搜尋頁不是授權證明；通用 CC 條款也不能單獨證明這張照片獲授權。姓名／照片配錯時請拒絕或保留 PENDING。</p>
+          <label>授權證據查證日期<input name="evidenceCheckedOn" type="date"></label>
+          <label>署名／使用條件如何履行<textarea name="attributionPlan" rows="3"></textarea></label>
+          <label>審核者<input name="reviewer" autocomplete="name"></label>
+          <fieldset><legend>逐項人工確認（不可由連線檢查代替）</legend>
+            <label><input name="subjectCorrect" type="checkbox"> 照片是該名運動員，沒有同名誤配</label>
+            <label><input name="personSourceConfirmed" type="checkbox"> 已核對人物身分及所屬入選名單／現役資格</label>
+            <label><input name="categoryConfirmed" type="checkbox"> 分類 athletes 正確，重複人物已處理</label>
+            <label><input name="rightsConfirmed" type="checkbox"> 已開啟原始授權證據，確認本專案可使用</label>
+            <label><input name="conditionsSatisfied" type="checkbox"> 署名時機、衍生處理與其他使用條件可滿足</label>
+          </fieldset>
+          <label>審核備註／拒絕原因<textarea name="notes" rows="4"></textarea></label>
+          <div class="actions"><button id="approve" type="button">APPROVE</button><button id="reject" type="button">REJECT</button><button id="pending" type="button">PENDING / 儲存草稿</button></div>
+          <p>修改圖片連結後，先儲存 PENDING 並重新檢查。只有 15 位不同 QID 的有效 APPROVED 才能準備新題庫；不會自動匯入，也不表示現有引擎支援連結圖片。</p>
+        </form>
+      </article>
+    </main>
+  </body>
+</html>

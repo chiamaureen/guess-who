@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+.image-credits {
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+
+.image-credits summary {
+  cursor: pointer;
+}
+
+.image-credits a {
+  text-decoration: underline;
+}
+
 .game-panel {
   margin-top: 24px;
   gap: 12px;
