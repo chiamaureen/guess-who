@@ -19,7 +19,7 @@ describe('page entry points', () => {
     expect(actions?.match(/button-static/g)).toHaveLength(2)
     expect(actions).toContain('href="/host"')
     expect(actions).toContain('href="/join"')
-    expect(actions).toContain('<svg')
+    expect(actions).toContain('\u2197\uFE0E')
     expect(actions).not.toContain('magnetic')
   })
   it('loads genuine categories asynchronously without hardcoded or mock fallback categories', () => {
