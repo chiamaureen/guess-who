@@ -77,7 +77,7 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
     } catch { outgoing.writeHead(500); outgoing.end('{"error":{"code":"FIXTURE_ERROR"}}') }
   })
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve) })
-  return { url: `http://127.0.0.1:${server.address().port}`, close: async () => { await new Promise(resolve => server.close(resolve)); await database.close() } }
+  return { url: `http://127.0.0.1:${server.address().port}`, database, close: async () => { await new Promise(resolve => server.close(resolve)); await database.close() } }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
