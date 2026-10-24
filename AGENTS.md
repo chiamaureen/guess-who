@@ -70,6 +70,11 @@
 
 ## Phase 7 Realtime 邊界
 
+- Phase 8 最新人數規劃以測試題庫 v3 為準：國外／台灣演員各15、英語／台灣歌手各30、運動員30、台灣政治人物15、台灣YouTuber15、動畫30，共180位不同身分。保留原七分類；YouTuber 不得放入 scientists，新增 inactive youtubers 僅草案。historical-figures 保留但本批無人。
+- v3 的151個原始圖片候選／29位缺網址、30張沿用運動員WebP均不等於核准；新 approved=0。180位QID與來源列於公開catalog，完整圖片映射／SQL只在ignored prepared。禁止以公開catalog取代完整匯入manifest，或把合成測試／Metadata當作圖片權利核准。
+- v3 Seed 只準備私有 question_bank_candidates 待審表：ENABLE／FORCE RLS、瀏覽器拒讀、CHECK禁止approved；不寫正式人物／圖片／分類關聯，不改房間／歷史。新增分類與staging兩份Migration僅在migration-drafts，子群組UI／API為方案而非已實作。雲端快照本次未獲允許，Cloud去重與可用數標BLOCKED，不能改用其他路徑重試。重跑不覆寫審核，run-owned rollback遇payload改變須停止。詳見 docs/phase8-test-bank-v3-report.md。
+- 2026-10-24 後續另批准 Cloud 唯讀盤點，取代上一項「快照尚未獲准」的狀態，不是雲端寫入授權。目標 ref 已核對、PostgreSQL 17.11／public 11 表、原七分類保留；15位原政治人物目前僅Q76／Q22686的人物approved=true，其餘13位false，15張圖片均approved有效PNG。不得擅自恢復旗標；歷史Phase6驗收PASS不代表現在仍有15題容量。v3 180候選零QID／同名匹配，Cloud八組可用皆0，WebP DB／已部署game-engine v1仍不支援。唯讀實證與後續計畫見 docs/phase8-test-bank-v3-cloud-inventory.md；未部署新分類、pending表或WebP，不執行遊戲API以免寫限流。
+
 - 最新 Phase 8 要求改為私有 PostgreSQL WebP，優先於前述 link-only／僅 PNG 的準備描述。69 張本機技術轉換／完整解碼 PASS，不等於權利核准；124 位盤點最終 69 PENDING／55 MISSING_IMAGE，含排除銅像及新 Anthony Edwards 待審候選。不得把技術收據、合成 fixtures 或 presentationReviewed 旗標當作授權證據。詳見 docs/phase8-webp-acceptance.md。
 - 新 WebP 僅單一無 Metadata lossy VP8、品質82、最長邊1024、300 KiB，原圖下載32 MiB／解碼40M上限不變；超限取已比對原圖 SHA／URL／revision 的官方 Commons rendition，另記下載 SHA-256，禁止假稱縮圖 SHA 是原圖 SHA。圖片仍中性檔名／ignored，不進 bundle。
 - 20261024120000_game_image_formats.sql 只在 migration-drafts：INVОKER／空 search_path helper、service_role-only、替換 image CHECK；png bytea／RPC png key 保留舊名但可存新格式。沒有部署。PNG 舊限制不變，新增 metadata-free JPEG／WebP；不能在新後端／前端通過並另獲批准前先啟用 WebP 題庫。

@@ -60,7 +60,7 @@ npm run dev
 
 使用分類與房間服務前，依 `.env.example` 在 `.env.local` 填入 Project URL 與 Publishable Key；不要放入私密金鑰或密碼。
 
-`VITE_ENABLE_REALTIME=false` 為 MVP 預設；房間前景約每 10 秒更新，人數較多時降頻，背景／離線暫停，遇限流自動退避。沿用已部署的 Phase 5、6 API，不需 Realtime JWT。題庫目前僅政治人物可開始完整遊戲，新 Host 可玩 15 題，歷史不會自動重置。
+`VITE_ENABLE_REALTIME=false` 為 MVP 預設；房間前景約每 10 秒更新，人數較多時降頻，背景／離線暫停，遇限流自動退避。沿用已部署的 Phase 5、6 API，不需 Realtime JWT。2026-10-24 最新唯讀盤點確認：雲端保留 15 位政治人物，但目前僅 2 位可抽題，暫不足開始 15 題；歷史不會自動重置。詳見 [Cloud 題庫盤點](docs/phase8-test-bank-v3-cloud-inventory.md)。
 
 - `npm test`：執行自動化測試。
 - `npm run test:db`：在隔離的本機資料庫驗證 Schema 與權限，不連線雲端。
@@ -74,5 +74,7 @@ npm run dev
 開發規範見 [AGENTS.md](AGENTS.md)，架構見 [Database Schema](docs/database-schema.md)、[Room System](docs/room-system.md) 與 [Game Engine](docs/game-engine.md)。驗收紀錄見 [Phase 5 Cloud Report](docs/phase5-cloud-deployment-report.md) 與 [Phase 6 Report](docs/phase6-game-engine-report.md)。
 
 目前發布關卡見 [MVP Deployment Sprint](docs/mvp-deployment-sprint.md)；題庫準備見 [Question Bank](data/question-bank/README.md)。
+
+最新題庫規劃為 [Phase 8 測試題庫 v3](docs/phase8-test-bank-v3-report.md)：八組 180 位候選，目前僅完成本機候選與待審 Seed，尚未核准或匯入新題庫。
 
 最新 [題庫審核](docs/phase8-minimum-bank-review.md)、[雲端 15 題驗收流程](docs/cloud-15-question-acceptance.md) 與 [Pages 發布清單](docs/pages-release-checklist.md)。

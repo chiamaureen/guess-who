@@ -1,5 +1,11 @@
 # Minimal Question Bank — Review Gate
 
+## 測試題庫 v3（最新，取代先前人數配置）
+
+八組共 180 位候選、180 個不同 QID，保留原七分類，YouTuber 另有 inactive `youtubers` 草案，不混入 scientists。151 個圖片網址候選／29 位缺網址，重用 30 張待審運動員 WebP；**新核准 0 位**，不能當成八組已可玩題庫。原政治人物／歷史不變。
+
+見 [v3 候選表](../../docs/phase8-test-bank-v3-candidates.md)、[本機驗收與 Seed 說明](../../docs/phase8-test-bank-v3-report.md)。`npm run test:bank-v3` 驗證候選、私有 pending Seed、去重／交易／回滾。後續經批准的 [Cloud 唯讀盤點](../../docs/phase8-test-bank-v3-cloud-inventory.md) 已確認：180 位皆未存在，零識別衝突；原政治人物 15 位中僅 2 位可抽題，WebP 未部署。待審表與新分類均僅本機 Migration 草案，沒有雲端寫入。以下 v2／舊政治人物紀錄保留作歷史，不是最新人數要求。
+
 ## 運動員 v2（2026-10-24 最新要求）
 
 **最新變更：** 使用者其後改回 69 位 approved＋私有 PNG 入庫請求，取代下方 link-only 意向。現僅本機準備 2 張後因大圖上限停止，尚未寫 Cloud；原匯入器與授權／署名支援仍有阻擋，見[私有圖片入庫請求](../../docs/phase8-athletes-private-import-request.md)。不得把這份啟用請求冒充已完成 69 張的查證或匯入。
