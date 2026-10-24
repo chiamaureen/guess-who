@@ -1,0 +1,16 @@
+{
+  "version": 3,
+  "id": "guess-who-demo-120",
+  "targetCount": 120,
+  "approvalPolicy": "Selection is not approval; preserve the other60 candidates for batch2",
+  "selectedGroups": {
+    "foreign-actors": ["leonardo-dicaprio", "tom-cruise", "tom-hanks", "brad-pitt", "johnny-depp", "robert-downey-jr", "keanu-reeves", "will-smith", "dwayne-johnson", "morgan-freeman", "scarlett-johansson", "emma-watson", "anne-hathaway", "julia-roberts", "jennifer-lawrence"],
+    "taiwan-actors": ["greg-hsu", "chen-bolin", "mark-chao", "eddie-peng", "chang-chen", "joseph-chang", "jasper-liu", "wu-kang-ren", "kai-ko", "austin-lin", "gwei-lun-mei", "ivy-chen", "ariel-lin", "ruby-lin", "alyssa-chia"],
+    "english-singers": ["justin-bieber", "taylor-swift", "beyonce", "adele", "ed-sheeran", "bruno-mars", "lady-gaga", "ariana-grande", "billie-eilish", "miley-cyrus", "harry-styles", "olivia-rodrigo", "sabrina-carpenter", "pink", "elton-john"],
+    "taiwan-singers": ["a-mei", "jay-chou", "jolin-tsai", "cheer-chen", "hebe-tien", "angela-chang", "elva-hsiao", "cyndi-wang", "rainie-yang", "eve-ai", "crowd-lu", "william-wei", "jam-hsiao", "harlem-yu", "richie-jen"],
+    "athletes": ["tan-ya-ting", "lebron-james", "stephen-curry", "kyrie-irving", "klay-thompson", "giannis-antetokounmpo", "kevin-durant", "james-harden", "jimmy-butler", "damian-lillard", "jayson-tatum", "anthony-davis", "kuo-hsing-chun", "wang-chi-lin", "tai-tzu-ying"],
+    "taiwan-politicians": ["lai-ching-te", "tsai-ing-wen", "ma-ying-jeou", "chen-shui-bian", "lee-teng-hui", "chiang-ching-kuo", "chiang-kai-shek", "annette-lu", "su-tseng-chang", "you-si-kun", "han-kuo-yu", "ko-wen-je", "hou-you-yi", "cheng-li-chun", "hsiao-bi-khim"],
+    "taiwan-youtubers": ["tsai-aga", "ray-du", "crown-du", "shih-chi-chang", "howhow", "ah-han", "joeman", "huang-da-chien", "jou-jou-shoe", "chien-chien", "princess-idiot", "alisasa", "ah-shen", "hook", "tsai-bro"],
+    "animated-characters": ["mickey-mouse", "winnie-the-pooh", "spongebob", "patrick-star", "doraemon", "pikachu", "stitch", "donald-duck", "snoopy", "hello-kitty", "shinnosuke-nohara", "monkey-d-luffy", "naruto-uzumaki", "goku", "elsa"]
+  }
+}

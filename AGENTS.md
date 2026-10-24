@@ -70,6 +70,9 @@
 
 ## Phase 7 Realtime 邊界
 
+- Phase8 Demo120 以 test-bank-v3-demo-scope.json 從原180位每組選15，保留60第二批，不取代／刪除原scope。76張最終WebP通過本機技術檢查，僅Morgan Freeman(PD)與譚雅婷(CC0明確裁切)2位完成具名Codex工程審核，非真人／律師保證；其餘118不核准。107份來源頁證據、13缺圖、Attribution自訂聲明／personality／角色權利不得直接改標CC或忽略。詳見 docs/phase8-demo-120-report.md。
+- 原Seed工具新增--selection僅產生120個pending；正式prepare-question-import仍需15～150位完整核准。新增明確--idempotent只能重用內容、圖片、分類與核准全部一致的既存人物，差異停止不覆寫；rollback僅刪收據新建且未變更、未被題目／C歷史使用的列，否則整批拒絕，不刪歷史。fictional_character須獨立角色權利證據；CC官方http/deed同條款可正規化但原證據保留。沒有真實完整匯入SQL／Cloud寫入／部署；WebP、YouTubers與群組前端／API仍需另審，群組目前僅方案。
+
 - Phase 8 最新人數規劃以測試題庫 v3 為準：國外／台灣演員各15、英語／台灣歌手各30、運動員30、台灣政治人物15、台灣YouTuber15、動畫30，共180位不同身分。保留原七分類；YouTuber 不得放入 scientists，新增 inactive youtubers 僅草案。historical-figures 保留但本批無人。
 - v3 的151個原始圖片候選／29位缺網址、30張沿用運動員WebP均不等於核准；新 approved=0。180位QID與來源列於公開catalog，完整圖片映射／SQL只在ignored prepared。禁止以公開catalog取代完整匯入manifest，或把合成測試／Metadata當作圖片權利核准。
 - v3 Seed 只準備私有 question_bank_candidates 待審表：ENABLE／FORCE RLS、瀏覽器拒讀、CHECK禁止approved；不寫正式人物／圖片／分類關聯，不改房間／歷史。新增分類與staging兩份Migration僅在migration-drafts，子群組UI／API為方案而非已實作。雲端快照本次未獲允許，Cloud去重與可用數標BLOCKED，不能改用其他路徑重試。重跑不覆寫審核，run-owned rollback遇payload改變須停止。詳見 docs/phase8-test-bank-v3-report.md。

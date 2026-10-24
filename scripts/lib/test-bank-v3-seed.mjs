@@ -15,14 +15,24 @@ export function candidatePayload(entry) {
   }
 }
 
-export function planV3Seed(bank, snapshot = null) {
+export function v3SeedEntries(bank, selectedIds = null) {
   validateV3Candidates(bank.entries)
+  if (selectedIds === null) return bank.entries
+  if (!Array.isArray(selectedIds) || selectedIds.length !== 120 || new Set(selectedIds).size !== 120) throw new Error('EXPECTED_120_UNIQUE_SELECTED_IDS')
+  const entries=selectedIds.map(id=>bank.entries.find(entry=>entry.id===id))
+  if (entries.some(entry=>!entry) || new Set(entries.map(entry=>entry.group)).size !== 8
+    || [...new Set(entries.map(entry=>entry.group))].some(group=>entries.filter(entry=>entry.group===group).length!==15)) throw new Error('EXPECTED_15_PER_SELECTED_GROUP')
+  return entries
+}
+
+export function planV3Seed(bank, snapshot = null, selectedIds = null) {
+  const entries=v3SeedEntries(bank,selectedIds)
   if (snapshot && (snapshot.projectRef !== 'fgvajdnzrnptdjurhjfo' || !Array.isArray(snapshot.celebrities) || !Array.isArray(snapshot.categories) || !Array.isArray(snapshot.staged ?? [])
     || snapshot.celebrities.some(person => !uuid.test(person.id) || !Array.isArray(person.categories)))) throw new Error('INVALID_OR_WRONG_PROJECT_SNAPSHOT')
   if (snapshot?.stagingExists && !Array.isArray(snapshot.staged)) throw new Error('STAGING_SNAPSHOT_REQUIRED')
   if (snapshot && (!Number.isFinite(Date.parse(snapshot.checkedAt)) || Date.now() - Date.parse(snapshot.checkedAt) > 86400000 || Date.parse(snapshot.checkedAt) - Date.now() > 300000)) throw new Error('FRESH_SNAPSHOT_REQUIRED')
   const staged = snapshot?.staged ?? []
-  const actions = bank.entries.map(entry => {
+  const actions = entries.map(entry => {
     if (!snapshot) return { id: entry.id, action: 'UNVERIFIED', reason: 'CLOUD_DUPLICATE_CHECK_NOT_PERFORMED' }
     const matched = snapshot.celebrities.filter(person => entry.wikidataId && person.wikidata_id === entry.wikidataId)
     if (matched.length === 1) return { id: entry.id, action: 'REUSE_EXISTING', celebrityId: matched[0].id }
@@ -40,14 +50,14 @@ export function planV3Seed(bank, snapshot = null) {
     cloudWrites: 0, formalCelebrityInserts: 0, imageAssetInserts: 0, categoryRelationInserts: 0,
     pendingStagingInserts: snapshot ? actions.filter(action => action.action === 'INSERT_PENDING_STAGING').length : null,
     existingReused: snapshot ? actions.filter(action => action.action === 'REUSE_EXISTING').length : null,
-    groups: summarizeV3(bank, snapshot), conflicts, actions,
+    groups: summarizeV3({ ...bank,entries }, snapshot).map(group=>selectedIds ? { ...group,target: 15 } : group), conflicts, actions,
   }
 }
 
-export function makeV3SeedSql(bank, runId = randomUUID()) {
-  validateV3Candidates(bank.entries)
+export function makeV3SeedSql(bank, runId = randomUUID(), selectedIds = null) {
+  const entries=v3SeedEntries(bank,selectedIds)
   if (!uuid.test(runId)) throw new Error('INVALID_RUN_ID')
-  const payload = JSON.stringify(bank.entries.map(candidatePayload))
+  const payload = JSON.stringify(entries.map(candidatePayload))
   const values = `${quote(payload)}::jsonb`
   let seedTag = '$seed$'
   let guardTag = '$guard$'

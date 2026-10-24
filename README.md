@@ -75,6 +75,8 @@ npm run dev
 
 目前發布關卡見 [MVP Deployment Sprint](docs/mvp-deployment-sprint.md)；題庫準備見 [Question Bank](data/question-bank/README.md)。
 
-最新題庫規劃為 [Phase 8 測試題庫 v3](docs/phase8-test-bank-v3-report.md)：八組 180 位候選，目前僅完成本機候選與待審 Seed，尚未核准或匯入新題庫。
+最新題庫規劃為 [Phase 8 測試題庫 v3](docs/phase8-test-bank-v3-report.md)：八組 180 位候選，目前僅完成本機候選與待審 Seed，尚未形成正式可玩或已匯入的新題庫。
+
+優先批次見 [Demo120 準備報告](docs/phase8-demo-120-report.md)：保留其餘60位，目前僅2位完成工程審核，尚未形成可正式匯入的完整批次。
 
 最新 [題庫審核](docs/phase8-minimum-bank-review.md)、[雲端 15 題驗收流程](docs/cloud-15-question-acceptance.md) 與 [Pages 發布清單](docs/pages-release-checklist.md)。

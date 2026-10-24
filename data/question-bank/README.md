@@ -1,5 +1,9 @@
 # Minimal Question Bank — Review Gate
 
+## Demo120（最新優先批次）
+
+已從原180位每組挑15，60位保留第二批。76張WebP通過技術檢查，僅2位工程核准，還不能形成15位合格匯入批次。見 [第一批／第二批名單](../../docs/phase8-demo-120-candidates.md)、[審核、Seed與部署計畫](../../docs/phase8-demo-120-report.md)。不會自動核准、匯入或修改舊政治人物／歷史；圖片／完整來源證據仍ignored，WebP雲端支援與群組篩選尚待批准／實作。
+
 ## 測試題庫 v3（最新，取代先前人數配置）
 
 八組共 180 位候選、180 個不同 QID，保留原七分類，YouTuber 另有 inactive `youtubers` 草案，不混入 scientists。151 個圖片網址候選／29 位缺網址，重用 30 張待審運動員 WebP；**新核准 0 位**，不能當成八組已可玩題庫。原政治人物／歷史不變。

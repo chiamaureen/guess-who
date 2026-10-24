@@ -6,6 +6,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { identifyLicense, storedAttribution, validateImageRights } from './lib/question-license.mjs'
 import sharp from 'sharp'
 import { privateImageMime } from '../supabase/functions/game-engine/images.ts'
+import { idempotentImportBlock, rollbackQuestionImport } from './lib/question-import-idempotence.mjs'
 
 const quote = value => `'${String(value).replaceAll("'", "''")}'`
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -18,12 +19,14 @@ export function validateReviewedEntries(entries) {
     if (entry.approved !== true || entry.review?.rights !== true || entry.review?.image !== true || entry.review?.subject !== true || !entry.review.reviewedBy?.trim() || !Number.isFinite(Date.parse(entry.review.reviewedAt))) throw new Error('Unreviewed subjects must never become usable')
     if (!identifyLicense(entry.license, entry.rights?.licenseUrl) || entry.restrictions || !/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/.test(entry.source) || !/^https:\/\/upload\.wikimedia\.org\//.test(entry.imageUrl)) throw new Error('Rights or provenance requires further review')
     validateImageRights(entry)
+    if (entry.subjectType && !['real_person','fictional_character'].includes(entry.subjectType)) throw new Error('Invalid subject type')
+    if (entry.subjectType === 'fictional_character' && (entry.rights?.characterRightsReviewed !== true || !entry.rights.characterRightsBasis?.trim() || !/^https:\/\//.test(entry.rights.characterRightsEvidenceUrl ?? ''))) throw new Error('Character copyright requires independent review evidence')
     if (!entry.nameZh?.trim() || !entry.author?.trim() || !entry.attribution?.trim() || !Array.isArray(entry.categoryIds) || !entry.categoryIds.length || !entry.categoryIds.every(category => uuid.test(category)) || typeof entry.imagePath !== 'string' || !/^[0-9a-f]{64}$/.test(entry.imageSha256)) throw new Error('Incomplete reviewed subject or image')
   }
   return entries
 }
 
-export async function prepareQuestionImport(manifest) {
+export async function prepareQuestionImport(manifest, { idempotent = false } = {}) {
   const path = await realpath(manifest)
   const directory = dirname(path)
   const entries = validateReviewedEntries(JSON.parse(await readFile(path, 'utf8')).entries)
@@ -32,7 +35,8 @@ export async function prepareQuestionImport(manifest) {
   const subjects = []
   let needsFormats = false
   const statements = ['BEGIN;', "SET LOCAL lock_timeout = '5s';", "SET LOCAL statement_timeout = '120s';",
-    `DO $preflight$ BEGIN IF (SELECT count(*) FROM public.categories WHERE id IN (${categories.map(quote).join(',')}) AND is_active) <> ${categories.length} THEN RAISE EXCEPTION 'Required active categories missing'; END IF; IF EXISTS (SELECT 1 FROM public.celebrities WHERE wikidata_id IN (${entries.map(entry => quote(entry.wikidataId)).join(',')})) THEN RAISE EXCEPTION 'Duplicate bank subjects; inspect existing data, never overwrite'; END IF; END; $preflight$;`]
+    ...(idempotent ? ['LOCK TABLE public.celebrities,public.celebrity_categories,public.game_image_assets IN SHARE ROW EXCLUSIVE MODE;'] : []),
+    `DO $preflight$ BEGIN IF (SELECT count(*) FROM public.categories WHERE id IN (${categories.map(quote).join(',')}) AND is_active) <> ${categories.length} THEN RAISE EXCEPTION 'Required active categories missing'; END IF; ${idempotent ? '' : `IF EXISTS (SELECT 1 FROM public.celebrities WHERE wikidata_id IN (${entries.map(entry => quote(entry.wikidataId)).join(',')})) THEN RAISE EXCEPTION 'Duplicate bank subjects; inspect existing data, never overwrite'; END IF;`} END; $preflight$;`]
   try {
     const migration = await readFile(new URL('../supabase/migrations/20261023120000_game_engine.sql', import.meta.url), 'utf8')
     await database.exec(migration.split('CREATE TABLE public.game_image_assets')[0])
@@ -52,21 +56,23 @@ export async function prepareQuestionImport(manifest) {
       needsFormats ||= mime !== 'image/png'
       const id = crypto.randomUUID()
       const imageId = crypto.randomUUID()
-      statements.push(`INSERT INTO public.celebrities(id,wikidata_id,name_zh,name_en,subject_type,image_url,image_source,image_author,image_license,image_attribution,is_approved) VALUES(${quote(id)},${quote(entry.wikidataId)},${quote(entry.nameZh)},${entry.nameEn ? quote(entry.nameEn) : 'NULL'},'real_person',${quote(entry.imageUrl)},${quote(entry.source)},${quote(entry.author)},${quote(entry.license)},${quote(storedAttribution(entry))},true);`)
-      for (const category of new Set(entry.categoryIds)) statements.push(`INSERT INTO public.celebrity_categories(celebrity_id,category_id) VALUES(${quote(id)},${quote(category)});`)
-      statements.push(`INSERT INTO public.game_image_assets(id,celebrity_id,png,is_approved) VALUES(${quote(imageId)},${quote(id)},decode(${quote(png.toString('base64'))},'base64'),true);`)
+      const inserts=[`INSERT INTO public.celebrities(id,wikidata_id,name_zh,name_en,subject_type,image_url,image_source,image_author,image_license,image_attribution,is_approved) VALUES(${quote(id)},${quote(entry.wikidataId)},${quote(entry.nameZh)},${entry.nameEn ? quote(entry.nameEn) : 'NULL'},${quote(entry.subjectType ?? 'real_person')},${quote(entry.imageUrl)},${quote(entry.source)},${quote(entry.author)},${quote(entry.license)},${quote(storedAttribution(entry))},true);`]
+      for (const category of new Set(entry.categoryIds)) inserts.push(`INSERT INTO public.celebrity_categories(celebrity_id,category_id) VALUES(${quote(id)},${quote(category)});`)
+      inserts.push(`INSERT INTO public.game_image_assets(id,celebrity_id,png,is_approved) VALUES(${quote(imageId)},${quote(id)},decode(${quote(png.toString('base64'))},'base64'),true);`)
       subjects.push({ id, wikidataId: entry.wikidataId, imageId, imageSha256: entry.imageSha256, attributionSha256: createHash('sha256').update(storedAttribution(entry)).digest('hex'), author: entry.author, license: entry.license, source: entry.source, mimeType: mime, categoryIds: [...new Set(entry.categoryIds)] })
+      statements.push(...(idempotent ? [idempotentImportBlock(entry,subjects.at(-1),inserts)] : inserts))
     }
     statements.push('COMMIT;')
     const output = resolve(directory, 'reviewed-import.sql')
     const sql = statements.join('\n') + '\n'
     const expected = subjects.map(subject => `(${quote(subject.id)}::uuid,${quote(subject.wikidataId)},${quote(subject.imageId)}::uuid,${quote(subject.imageSha256)},${quote(subject.attributionSha256)},${quote(subject.author)},${quote(subject.license)},${quote(subject.source)},ARRAY[${subject.categoryIds.toSorted().map(quote).join(',')}]::uuid[])`).join(',\n')
-    const matched = `WITH expected(celebrity_id,wikidata_id,image_id,png_sha256,credit_sha256,author,license,source,category_ids) AS (VALUES ${expected}) SELECT count(*)::integer FROM expected JOIN public.celebrities AS celebrity ON celebrity.id=expected.celebrity_id AND celebrity.wikidata_id=expected.wikidata_id AND celebrity.is_approved AND celebrity.image_author=expected.author AND celebrity.image_license=expected.license AND celebrity.image_source=expected.source AND encode(sha256(convert_to(celebrity.image_attribution,'UTF8')),'hex')=expected.credit_sha256 JOIN public.game_image_assets AS asset ON asset.id=expected.image_id AND asset.celebrity_id=celebrity.id AND asset.is_approved AND encode(sha256(asset.png),'hex')=expected.png_sha256 AND public.${needsFormats ? 'game_engine_image_valid' : 'game_engine_png_valid'}(asset.png) WHERE (SELECT array_agg(category.id ORDER BY category.id) FROM public.celebrity_categories AS membership JOIN public.categories AS category ON category.id=membership.category_id AND category.is_active WHERE membership.celebrity_id=celebrity.id)=expected.category_ids`
+    const matched = `WITH expected(celebrity_id,wikidata_id,image_id,png_sha256,credit_sha256,author,license,source,category_ids) AS (VALUES ${expected}) SELECT count(*)::integer FROM expected JOIN public.celebrities AS celebrity ON ${idempotent ? '' : 'celebrity.id=expected.celebrity_id AND '}celebrity.wikidata_id=expected.wikidata_id AND celebrity.is_approved AND celebrity.image_author=expected.author AND celebrity.image_license=expected.license AND celebrity.image_source=expected.source AND encode(sha256(convert_to(celebrity.image_attribution,'UTF8')),'hex')=expected.credit_sha256 JOIN public.game_image_assets AS asset ON ${idempotent ? '' : 'asset.id=expected.image_id AND '}asset.celebrity_id=celebrity.id AND asset.is_approved AND encode(sha256(asset.png),'hex')=expected.png_sha256 AND public.${needsFormats ? 'game_engine_image_valid' : 'game_engine_png_valid'}(asset.png) WHERE (SELECT array_agg(category.id ORDER BY category.id) FROM public.celebrity_categories AS membership JOIN public.categories AS category ON category.id=membership.category_id AND category.is_active WHERE membership.celebrity_id=celebrity.id)=expected.category_ids`
     const verification = `BEGIN READ ONLY;\nSET LOCAL statement_timeout = '120s';\nDO $verify$ DECLARE matched integer; BEGIN SELECT (${matched}) INTO matched; IF matched <> ${entries.length} THEN RAISE EXCEPTION 'Imported subject, approval, image digest or category verification failed'; END IF; END; $verify$;\nSELECT ${entries.length} AS expected_subjects, (${matched}) AS verified_subjects;\nROLLBACK;\n`
     await writeFile(output, sql, { mode: 0o600, flag: 'wx' })
     await writeFile(resolve(directory, 'verify-import.sql'), verification, { mode: 0o600, flag: 'wx' })
+    await writeFile(resolve(directory, 'rollback-import.sql'), rollbackQuestionImport(entries,subjects), { mode: 0o600, flag: 'wx' })
     const categoryRelationships = subjects.reduce((count, subject) => count + subject.categoryIds.length, 0)
-    const receipt = { reviewedSubjects: entries.length, categoryRelationships, imageAssets: entries.length, totalRows: entries.length * 2 + categoryRelationships, requiresImageFormatsMigration: needsFormats, sqlSha256: createHash('sha256').update(sql).digest('hex'), subjects }
+    const receipt = { reviewedSubjects: entries.length, categoryRelationships, imageAssets: entries.length, totalRows: entries.length * 2 + categoryRelationships, idempotent, requiresImageFormatsMigration: needsFormats, sqlSha256: createHash('sha256').update(sql).digest('hex'), subjects }
     await writeFile(resolve(directory, 'import-receipt.json'), JSON.stringify(receipt, null, 2), { mode: 0o600, flag: 'wx' })
     return { output, ...receipt, cloudWrites: 0 }
   } finally { await database.close() }
@@ -74,8 +80,8 @@ export async function prepareQuestionImport(manifest) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try {
-    if (process.argv.length !== 3) throw new Error('Manifest path required')
-    console.log(JSON.stringify({ result: 'PASS', ...await prepareQuestionImport(process.argv[2]) }))
+    if (![3,4].includes(process.argv.length) || process.argv.length === 4 && process.argv[3] !== '--idempotent') throw new Error('Manifest path and optional --idempotent required')
+    console.log(JSON.stringify({ result: 'PASS', ...await prepareQuestionImport(process.argv[2], { idempotent: process.argv[3] === '--idempotent' }) }))
   } catch {
     console.error('BLOCKED: reviewed manifest, rights, safe images or unique output failed validation. No Cloud request or database write performed.')
     process.exitCode = 2
