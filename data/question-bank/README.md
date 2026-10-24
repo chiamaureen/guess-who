@@ -1,5 +1,11 @@
 # Minimal Question Bank — Review Gate
 
+## 運動員 v2（2026-10-24 最新要求）
+
+新批次改為 **link-only**：先整理圖片 URL／作者／授權，不新增圖片二進位資料、不使用 Storage。既有政治人物私有圖片及已部署引擎保留；現有引擎仍需要私有圖片 asset，不能宣稱只存 URL 即可出題。新人物及舊題庫停用均未寫入 Cloud，詳見 [運動員 v2 計畫](../../docs/phase8-athletes-v2-plan.md) 與[候選表](../../docs/phase8-athletes-v2-candidates.md)。
+
+`prepare-athlete-review.mjs <new-directory>` 只讀公開 Metadata、所有 review flags=false；`plan-athlete-bank.mjs <manifest> <readonly-impact-json>` 只產生本機變更預覽。不要使用下方舊 PNG 匯入流程匯入 link-only 批次。Google 圖片第一筆遭機器人驗證，不能把 Commons 候選冒稱已完成 Google 核驗。
+
 **最新狀態：** 已逐頁與逐張檢查原候選、保守排除拜登／柯林頓，再補林肯／格蘭特，15 位批次已經使用者批准匯入 Cloud 並通過唯讀驗證。詳見 [Cloud Import Report](../../docs/phase8-cloud-import-report.md)；不得再次匯入同批次，後續另批准的完整 [Cloud 遊戲驗收](../../docs/phase6-cloud-acceptance-report.md) 亦已 PASS。重跑 QA 或任何新寫入仍需新授權。以下保留準備工具說明，不代表可略過來源與視覺審核。
 
 原候選檔維持未審核狀態；正式待審批次在 ignored `prepared/review-20261023/reviewed-bank.json`，圖片／SQL 不進 `src`／`public` 或 dist。Vite 開發伺服器也拒絕直接存取此題庫目錄，不把原始 Metadata 交給玩家。

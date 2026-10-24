@@ -64,6 +64,8 @@
 - `source-review.json`、`prepare-reviewed-images.mjs` 預設不自動核准圖片；只有逐張檢視後的明確確認可 finalize。匯入 SQL 先驗 active category 與重複 Wikidata，與既有 UNIQUE 一同拒絕重跑，無 UPSERT／UPDATE／DELETE。先批准確切 SQL SHA-256 再執行，三個 Migration 均禁止改寫。
 - `.github/workflows/pages.yml` 只有 workflow_dispatch，避免 Push 意外發布；使用最小權限、固定 Action commit、Actions 公開 vars。2026-10-24 使用者已設定並批准 Phase 9 發布：public Repository、兩個 Variables、Source=workflow、無自訂網域已唯讀核對。MVP 20987cb 已發布；後續部署與題庫寫入仍須另批准，不改 Repository 可見性或付費方案。
 
+- 2026-10-24 運動員題庫 v2 最新要求為 link-only：新批次只準備圖片 URL／來源／作者／授權，不新增 game_image_assets、不用 Storage、不刪既有圖片。所有候選仍未核准，不得使用舊 PNG 匯入器直接匯入。現有 Cloud 引擎仍依賴私有 asset；新的 URL 讀圖／答案隔離架構需另審查與批准，不直接把含姓名的圖片網址給未揭曉 Player。尚未匯入或停用政治人物，七分類與題目／C 歷史保留；來源、缺圖與阻擋見 docs/phase8-athletes-v2-plan.md。
+
 ## Phase 7 Realtime 邊界
 
 - 發布順序已調整：Phase 7 DEFERRED，先發布 Phase 9 Polling MVP。以下是保留的 Phase 7 設計，不是目前正式啟用的同步方式。

@@ -1,0 +1,65 @@
+{
+  "version": 2,
+  "snapshotDate": "2026-10-24",
+  "imageStorageMode": "link-only",
+  "categorySlug": "athletes",
+  "categoryId": "10000000-0000-4000-8000-000000000003",
+  "preserveCategories": ["actors", "singers", "athletes", "politicians", "scientists", "historical-figures", "animated-characters"],
+  "googleImages": {
+    "status": "BLOCKED_CAPTCHA",
+    "attemptedQuery": "LeBron James",
+    "firstResultVerified": false,
+    "note": "Google Images 回傳機器人驗證；不繞過、不把 Commons 候選冒稱 Google 第一筆。其他人物尚未完成 Google 第一筆人工核驗。"
+  },
+  "groups": [
+    {
+      "id": "nba-active-instagram-35",
+      "language": "en",
+      "source": "https://www.popularbasketballers.com/",
+      "dataSource": "https://www.popularbasketballers.com/get_players.php",
+      "qualificationStatus": "PENDING_OFFICIAL_ACTIVE_STATUS_AND_INSTAGRAM_COUNTS",
+      "note": "僅限現役。以下為第三方排名快照候選，非 Instagram 官方數字認證；需對照 NBA 正式現役名單。第35名 Jordan Clarkson 與第36名 Zach LaVine 應以未四捨五入數字核對。",
+      "names": ["LeBron James", "Stephen Curry", "Kyrie Irving", "Klay Thompson", "Giannis Antetokounmpo", "Kevin Durant", "James Harden", "Luka Doncic", "LaMelo Ball", "Jimmy Butler", "Damian Lillard", "Ja Morant", "Paul George", "Bronny James", "Jayson Tatum", "Joel Embiid", "Anthony Davis", "Victor Wembanyama", "Anthony Edwards", "Devin Booker", "Dennis Schroder", "Shai Gilgeous-Alexander", "Trae Young", "Karl-Anthony Towns", "Zion Williamson", "Kyle Kuzma", "Jaylen Brown", "Draymond Green", "Donovan Mitchell", "D'Angelo Russell", "Tyrese Haliburton", "Jalen Green", "Jared McCain", "Jordan Poole", "Jordan Clarkson"]
+    },
+    {
+      "id": "taiwan-u23-baseball-2026",
+      "language": "zh",
+      "source": "https://www.cna.com.tw/news/aspt/202610230188.aspx",
+      "corroboratingSource": "https://sports.ltn.com.tw/news/breakingnews/5616556",
+      "qualificationStatus": "PENDING_CTBA_PRIMARY_ROSTER_CONFIRMATION",
+      "note": "採10月23日報導之24人正選，不採26人培訓名單；棒協原始公告尚未取得。投手11、捕手3、內野6、外野4。吳瑞璁／吳瑞聰兩報寫法衝突須確認；林柏佑不可誤配1986年同名退役球員。吳丞顥、吳承皓是兩位不同人物。",
+      "names": ["林柏佑", "雷皓博", "吳瑞璁", "許少捷", "徐磊", "黃錦豪", "吳丞顥", "楊家凱", "林佾葳", "王宇傑", "王翾祈", "吳柏萱", "余羿賢", "呂東翰", "吳承皓", "鄭俊瑋", "鐘懷逸", "蔡琞傑", "葉弘仁", "宋柏翰", "劉承佑", "黃柏叡", "林廷之", "黃鈞麟"]
+    },
+    {
+      "id": "taiwan-olympic-medalists",
+      "language": "zh",
+      "source": "https://olympians.tw/athlete/",
+      "corroboratingSource": "https://www.nstc.org.tw/Athletics/News/Detail/67964480-19af-4f7b-80ce-639cd3e15d0f?ModuelID=AthleticsN2",
+      "qualificationStatus": "PENDING_MEDAL_RECORD_CROSSCHECK",
+      "note": "正式夏季／冬季奧運獎牌個人，含1992棒球20人與其他團體成員；排除示範賽、青年奧運、帕運、教練。跨屆重複合併。協會來源部分年份／獎牌色別有錯，需官方逐項核對，且冬奧完整性仍待核對。",
+      "names": ["楊傳廣", "紀政", "蔡溫義", "王光熙", "古國謙", "白昆弘", "江泰權", "吳思賢", "林朝煌", "林琨瀚", "張文宗", "張正憲", "張耀騰", "郭李建夫", "陳威成", "陳執信", "黃文博", "黃忠義", "廖敏雄", "蔡明宏", "鍾宇政", "羅振榮", "羅國璋", "陳靜", "紀淑如", "黃志雄", "郭羿含", "黎鋒英", "王正邦", "吳蕙如", "袁叔琪", "陳詩園", "陳麗如", "劉明煌", "朱木炎", "陳詩欣", "宋玉麒", "陳葦綾", "盧映錡", "曾櫟騁", "許淑淨", "林詩嘉", "雷千瑩", "譚雅婷", "郭婞淳", "王齊麟", "李洋", "戴資穎", "文姿云", "楊勇緯", "湯智鈞", "鄧宇成", "魏均珩", "黃筱雯", "林昀儒", "鄭怡靜", "潘政琮", "羅嘉翎", "陳玟卉", "李智凱", "李孟遠", "吳詩儀", "林郁婷", "陳念琴", "唐嘉鴻"]
+    }
+  ],
+  "wikidataHints": {
+    "Anthony Edwards": "Q60951627",
+    "陳詩欣": "Q716524",
+    "李洋": "Q21497775",
+    "李孟遠": "Q128405681",
+    "黃文博": "Q701859",
+    "廖敏雄": "Q701258"
+  },
+  "imageExclusions": {
+    "Anthony Edwards 2018 - 1 in 6 181029-F-VX890-1029 (cropped).jpg": "Commons檔案說明為ER／Top Gun演員，不是NBA球員。",
+    "Xu Lei at HKIFF 2025.jpg": "搜尋指向影展人物，未能確認為U23棒球選手，保守排除。",
+    "Cast of A Controversial Entertainer at 2025 Busan International Film Festival 02.jpg": "演員合照不是已確認的1992棒球代表，保守排除。",
+    "Huang Po-Jui (cropped).jpg": "同名羽球人物候選，未能確認為U23棒球選手，保守排除。",
+    "立法委員 陳靜敏 護理博士.jpg": "姓名與身分不是桌球選手陳靜。",
+    "紀淑如銅像.jpg": "銅像不是選手本人照片，且涉及額外作品權利審核。"
+  },
+  "identityWarnings": {
+    "林柏佑": "BLOCKED_HOMONYM: 2026 U23年輕投手，禁止自動套用同名1986年球員的QID或照片。",
+    "吳瑞璁": "BLOCKED_SPELLING_CONFLICT: CNA作吳瑞璁，自由作吳瑞聰，須官方名單核對。",
+    "陳靜": "須核對桌球奧運代表，不可採其他同名人物。",
+    "郭羿含": "須核對曾用名郭怡含，僅同一已確認QID才跨來源合併。"
+  }
+}
