@@ -21,13 +21,13 @@
 | 路由 | React Router（HashRouter） |
 | 後端 | Supabase Edge Functions |
 | 資料庫 | Supabase PostgreSQL |
-| 即時同步 | Supabase Realtime |
+| 畫面同步 | MVP 使用低頻 Polling；Supabase Realtime 暫緩部署 |
 | 題庫來源 | Wikidata、Wikimedia Commons |
 | 前端託管 | GitHub Pages |
 
 前端負責畫面與操作；伺服器負責遊戲狀態、隨機出題與主持人權限。房間與遊戲引擎分為獨立 Edge Functions，透過資料隔離、RLS 與伺服器授權保護答案；圖片透過私有入口提供，不公開原始檔名。
 
-**目前進度：** 房間系統、遊戲引擎與 15 位題庫已上雲，完整 15 題及答案隔離通過雲端驗收。Realtime 自動同步已完成本機驗收，尚待審核增量、JWT 信任與部署；網站發布亦待批准。
+**目前進度：** 房間系統、遊戲引擎與 15 位政治人物題庫已上雲，完整 15 題及答案隔離通過雲端驗收。MVP 優先以 Polling 同步，Realtime 程式碼保留、尚未部署；GitHub Pages 發布仍需批准。
 
 ## 專案結構
 
@@ -57,6 +57,8 @@ npm run dev
 開啟 Vite 顯示的 `/guess-who/` 網址。分類與房間服務使用已部署的 Supabase；本機 origin 必須列入後端 allowlist，連線失敗會顯示錯誤，不會假裝成功。
 
 使用分類與房間服務前，依 `.env.example` 在 `.env.local` 填入 Project URL 與 Publishable Key；不要放入私密金鑰或密碼。
+
+`VITE_ENABLE_REALTIME=false` 為 MVP 預設；房間前景約每 10 秒更新，人數較多時降頻，背景／離線暫停，遇限流自動退避。沿用已部署的 Phase 5、6 API，不需 Realtime JWT。題庫目前僅政治人物可開始完整遊戲，新 Host 可玩 15 題，歷史不會自動重置。
 
 - `npm test`：執行自動化測試。
 - `npm run test:db`：在隔離的本機資料庫驗證 Schema 與權限，不連線雲端。

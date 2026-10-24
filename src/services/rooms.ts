@@ -59,7 +59,11 @@ export function createRoomService(options: { storage?: () => StoragePort; lock?:
     store.remove('host-bootstrap')
     return identity
   }
-  const snapshot = async (code: string, data: Record<string, unknown>): Promise<RoomSnapshot> => ({ game: parseGameState(data), lobby: Array.isArray(data.players) && Array.isArray(data.categories) ? parseLobby(data) : await loadState(code) })
+  const snapshot = async (code: string, data: Record<string, unknown>): Promise<RoomSnapshot> => {
+    const game = parseGameState(data)
+    const lobby = Array.isArray(data.players) && Array.isArray(data.categories) ? parseLobby(data) : await loadState(code)
+    return { game, lobby: { ...lobby, room: game.room, viewer: game.viewer } }
+  }
   return {
     pendingCreation,
     savedCodes: () => store.codes(),
@@ -67,6 +71,19 @@ export function createRoomService(options: { storage?: () => StoragePort; lock?:
     getState: loadState,
     async getSnapshot(code: string) {
       return snapshot(code, await gameApi('get-game-state', { roomCode: code }, gameCredentials(code)))
+    },
+    async getPollingSnapshot(code: string, previous: RoomSnapshot | null): Promise<RoomSnapshot> {
+      if (!previous) return snapshot(code, await gameApi('get-game-state', { roomCode: code }, gameCredentials(code)))
+      if (previous.lobby.room.status === 'waiting') {
+        const lobby = await loadState(code)
+        if (lobby.room.status === 'waiting') return { lobby, game: { ...previous.game, room: lobby.room, viewer: lobby.viewer } }
+        const game = parseGameState(await gameApi('get-game-state', { roomCode: code }, gameCredentials(code)))
+        return { lobby: { ...lobby, room: game.room, viewer: game.viewer }, game }
+      }
+      const data = await gameApi('get-game-state', { roomCode: code }, gameCredentials(code))
+      const game = parseGameState(data)
+      const lobby = Array.isArray(data.players) && Array.isArray(data.categories) ? parseLobby(data) : { ...previous.lobby, room: game.room, viewer: game.viewer }
+      return { lobby, game }
     },
     async getRealtimeTicket(code: string): Promise<RealtimeTicket> {
       const value = await api('get-realtime-ticket', { roomCode: code }, gameCredentials(code))

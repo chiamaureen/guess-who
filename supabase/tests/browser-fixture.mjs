@@ -6,7 +6,7 @@ import { createRoomHandler, RoomError } from '../functions/room-system/handler.t
 import { createGameHandler } from '../functions/game-engine/handler.ts'
 import { seedGameFixtures } from './game-fixture.mjs'
 
-export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.0.1:5177', gamePeople = 0 } = {}) {
+export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.0.1:5177', gamePeople = 0, legacyGameDto = false } = {}) {
   const database = new PGlite()
   await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;')
   await database.exec(await readFile(new URL('./realtime-platform.sql', import.meta.url), 'utf8'))
@@ -41,6 +41,10 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
         outgoing.end(JSON.stringify((await database.query('SELECT (SELECT count(*)::int FROM public.hosts) AS hosts, (SELECT count(*)::int FROM public.rooms) AS rooms, (SELECT count(*)::int FROM public.room_players) AS players')).rows[0]))
         return
       }
+      if (incoming.method === 'GET' && url.pathname === '/test/game-stats') {
+        outgoing.end(JSON.stringify((await database.query('SELECT count(*)::int AS questions, count(DISTINCT celebrity_id)::int AS distinct_people, count(revealed_at)::int AS revealed, (SELECT count(*)::int FROM public.host_question_history) AS history FROM public.room_questions')).rows[0]))
+        return
+      }
       if (incoming.method === 'POST' && url.pathname === '/test/add-category') {
         await database.query("INSERT INTO public.categories (id,name,slug) VALUES ('10000000-0000-4000-8000-000000000008','未來分類','future-category') ON CONFLICT DO NOTHING")
         outgoing.end('{"ok":true}')
@@ -51,7 +55,13 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
       const headers = new Headers()
       for (const [name, value] of Object.entries(incoming.headers)) if (value) headers.set(name, Array.isArray(value) ? value.join(',') : value)
       const request = new Request(url, { method: incoming.method, headers, body: ['GET', 'HEAD'].includes(incoming.method) ? undefined : body })
-      const response = await (url.pathname.includes('/game-engine/') ? gameHandler : handler)(request, { sourceAddress: incoming.socket.remoteAddress })
+      let response = await (url.pathname.includes('/game-engine/') ? gameHandler : handler)(request, { sourceAddress: incoming.socket.remoteAddress })
+      if (legacyGameDto && response.ok && url.pathname.includes('/game-engine/') && response.headers.get('content-type') === 'application/json') {
+        const value = await response.json()
+        delete value.data.players
+        delete value.data.categories
+        response = new Response(JSON.stringify(value), { status: response.status, headers: response.headers })
+      }
       outgoing.writeHead(response.status, Object.fromEntries(response.headers))
       outgoing.end(Buffer.from(await response.arrayBuffer()))
     } catch { outgoing.writeHead(500); outgoing.end('{"error":{"code":"FIXTURE_ERROR"}}') }

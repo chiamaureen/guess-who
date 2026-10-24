@@ -72,7 +72,7 @@ export function LobbyPage() {
       </div>
       <div className="lobby-panel"><div className="player-list-heading"><h2>玩家名單 <span>({state.players.length})</span></h2><button type="button" className="text-button" disabled={action.loading || cooldown} onClick={() => { setCooldown(true); sync.refresh() }}>{cooldown ? '請稍候 5 秒' : '重新整理名單'}</button></div>
         {state.players.length ? <ul className="player-list">{state.players.map((player, index) => <li key={player.id}><span className="player-avatar" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span><strong>{player.nickname}</strong>{player.id === state.viewer.id && <span className="self-label">你</span>}</li>)}</ul> : <p className="empty-players">還沒有玩家，分享邀請連結，讓朋友入座吧！</p>}
-        <p className="form-note">玩家加入／離開會自動更新名單。重新整理會重新驗證身分並恢復訂閱。</p>
+        <p className="form-note">等待室名單會定期自動更新。重新整理會重新驗證身分並恢復同步；遊戲中的名單保留開場快照。</p>
       </div>
     </div>
     <GamePanel key={code} code={code} roomStatus={state.room.status} state={sync.snapshot?.game ?? null} onRefresh={sync.refresh}

@@ -10,4 +10,4 @@ export interface RealtimeTicket {
   accessToken: string
   expiresAt: string
 }
-export type SyncStatus = 'connecting' | 'connected' | 'reconnecting' | 'unavailable' | 'unauthorized'
+export type SyncStatus = 'connecting' | 'connected' | 'reconnecting' | 'unavailable' | 'unauthorized' | 'stopped'

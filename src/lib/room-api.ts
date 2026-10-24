@@ -28,12 +28,14 @@ export async function requestRoomApi(action: string, input: Record<string, unkno
 }
 
 export async function readApiResponse(response: Response): Promise<Record<string, unknown>> {
+  const retryHeader = response.headers.get('Retry-After')
+  const retryAfter = retryHeader && /^\d+$/.test(retryHeader.trim()) ? Number(retryHeader) : retryHeader ? (Date.parse(retryHeader) - Date.now()) / 1000 : NaN
+  const retrySeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : 5
   let body: { data?: Record<string, unknown>; error?: { code?: string } }
-  try { body = await response.json() } catch { throw new RoomApiError('INVALID_RESPONSE', response.status, '房間服務回應無法識別，請稍後重試。') }
+  try { body = await response.json() } catch { throw new RoomApiError('INVALID_RESPONSE', response.status, '房間服務回應無法識別，請稍後重試。', retrySeconds) }
   if (!response.ok || !body.data || typeof body.data !== 'object') {
     const code = body.error?.code ?? 'SERVICE_UNAVAILABLE'
-    const retryAfter = Number(response.headers.get('Retry-After'))
-    throw new RoomApiError(code, response.status, messages[code] ?? '房間服務尚未部署或暫時無法使用，請稍後重試。', Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(600, Math.ceil(retryAfter)) : 5)
+    throw new RoomApiError(code, response.status, messages[code] ?? '房間服務尚未部署或暫時無法使用，請稍後重試。', retrySeconds)
   }
   return body.data
 }

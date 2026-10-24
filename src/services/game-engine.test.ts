@@ -30,6 +30,53 @@ describe('game engine session boundary', () => {
     expect(gameApi).toHaveBeenCalledTimes(1)
     expect([...values.values()].join('')).not.toContain('正確姓名')
   })
+  it('loads the deployed Phase 6 DTO without requiring Phase 7 tickets or new fields', async () => {
+    const context = fixture('player')
+    const api = vi.fn(async () => ({ ...state('player'), categories: [], players: [] }))
+    const service = createRoomService({ ...context.options, api })
+    const value = await service.getPollingSnapshot(code, null)
+    expect(api.mock.calls).toHaveLength(1)
+    expect(context.gameApi).toHaveBeenCalledTimes(1)
+    expect(value.game.question?.answer).toBeUndefined()
+    expect(value.lobby.room).toEqual(value.game.room)
+  })
+  it('polls the waiting roster with one room API call without repeatedly requesting the game', async () => {
+    const context = fixture('player')
+    const waiting = { ...state('player'), room: { ...state('player').room, status: 'waiting', currentQuestion: 0 }, question: null }
+    const api = vi.fn(async () => ({ ...waiting, categories: [], players: [{ id: 'new', nickname: '新玩家', joinedAt: '2026-10-24T00:00:00Z' }] }))
+    const service = createRoomService({ ...context.options, api })
+    const previous = { game: parseGameState(waiting), lobby: { ...parseGameState(waiting), categories: [], players: [] } }
+    const value = await service.getPollingSnapshot(code, previous)
+    expect(api).toHaveBeenCalledTimes(1)
+    expect(value.lobby.players).toHaveLength(1)
+    expect(context.gameApi).not.toHaveBeenCalled()
+    expect(value.game.question).toBeNull()
+  })
+  it('detects start from the room API and obtains the first protected game state', async () => {
+    const context = fixture('player')
+    const api = vi.fn(async () => ({ ...state('player'), categories: [], players: [] }))
+    const service = createRoomService({ ...context.options, api })
+    const waiting = { ...state('player'), room: { ...state('player').room, status: 'waiting', currentQuestion: 0 }, question: null }
+    const previous = { game: parseGameState(waiting), lobby: { ...parseGameState(waiting), categories: [], players: [] } }
+    const value = await service.getPollingSnapshot(code, previous)
+    expect(api).toHaveBeenCalledTimes(1)
+    expect(context.gameApi).toHaveBeenCalledTimes(1)
+    expect(value.game.question?.number).toBe(1)
+    expect(value.game.question?.answer).toBeUndefined()
+  })
+  it('polls playing state with one existing game call, retaining only the opening roster', async () => {
+    const context = fixture('player')
+    const api = vi.fn(async () => ({ ...state('player'), categories: [], players: [] }))
+    const service = createRoomService({ ...context.options, api })
+    const previous = await service.getPollingSnapshot(code, null)
+    api.mockClear(); context.gameApi.mockClear()
+    context.gameApi.mockResolvedValue(state('player', true))
+    const value = await service.getPollingSnapshot(code, previous)
+    expect(context.gameApi).toHaveBeenCalledTimes(1)
+    expect(api).not.toHaveBeenCalled()
+    expect(value.game.question?.answer).toBe('正確姓名')
+    expect(value.lobby.room).toEqual(value.game.room)
+  })
   it('requests a short Realtime ticket with only existing headers and never trusts caller IDs', async () => {
     const context = fixture('player')
     const ticket = { topic: 'gw-room:10000000-0000-4000-8000-000000000001', accessToken: 'aaa.bbb.ccc', expiresAt: new Date(Date.now() + 240000).toISOString() }

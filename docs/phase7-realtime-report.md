@@ -2,6 +2,8 @@
 
 日期：2026-10-23（Asia/Taipei）。**本機驗收：READY。Cloud Realtime 驗收：NOT TESTED，尚未部署。**
 
+**2026-10-24 發布順序調整：Phase 7 DEFERRED。** 全部程式碼、草案與測試保留；MVP 以 `VITE_ENABLE_REALTIME=false` 使用低頻 Polling，不依賴新 JWT／Migration／Functions。以下為原本的 Phase 7 驗收紀錄，不代表已啟用或部署。當前關卡見 [Phase 9 Report](phase9-mvp-release-report.md)。
+
 ## 1. 架構選擇
 
 採 **Private Broadcast**，不採 Postgres Changes。PostgreSQL 保持唯一權威，Realtime 僅送失效通知，Client 再以原房間憑證呼叫 Edge API。沒有輪詢、搶答、計分、排行榜或多房調度。

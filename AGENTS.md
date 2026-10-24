@@ -31,7 +31,7 @@
 - 所有應用表 ENABLE／FORCE RLS。瀏覽器角色只能 SELECT 啟用分類；其他表預設拒絕，不以 `auth.uid()` 當匿名主持人身分。service_role 只有明確的資料操作權限，Edge Functions 仍須先驗證匿名憑證與房間控制權。
 - Host 長期憑證、單房間 Host Token、玩家 Session 分離，以用途分離 SHA-256 hex hash 存 DB。瀏覽器 localStorage 保存 bearer 憑證，Web Locks 序列化跨分頁首次建立；不得把身分、Token 放在邀請 URL、log 或分析資料。
 - `room-system` 單一 Edge Function 提供六個 action。`verify_jwt=false` 不是授權：仍須驗證執行環境的 Publishable Key、Host／Room／Player 憑證、來源與限流，禁止信任 Host ID／Player ID／前端 role。
-- 建立房間與分類同交易；requestKey／joinKey 的失敗重試沿用原資料，網路錯誤不得自動清除憑證。Phase 7 透過私有 Broadcast 後拉取 Edge 快照，自動更新名單／遊戲；不輪詢，手動五秒按鈕保留作備援。缺 Phase 7 部署顯示未設定，不假裝已同步；Start 仍走真實遊戲 API，沒有 Mock fallback。
+- 建立房間與分類同交易；requestKey／joinKey 的失敗重試沿用原資料，網路錯誤不得自動清除憑證。Phase 7 私有 Broadcast 保留但暫緩部署；MVP 依 Phase 9 規則使用 Polling，手動按鈕保留作備援。Start 仍走真實遊戲 API，沒有 Mock fallback。
 - `ROOM_SYSTEM_SIGNING_KEY` 與 `ROOM_SYSTEM_ALLOWED_ORIGINS` 僅限 Edge 後端設定；新 API Keys 優先讀取執行環境 `SUPABASE_SECRET_KEYS`／`SUPABASE_PUBLISHABLE_KEYS`，不把後端 Secrets 放進 VITE。跨站 Cookie 不是此 MVP 的身分恢復保證。
 - Phase 6 單房寫入固定先鎖驗證後的 Host、再鎖 Room，Host 鎖只沿用既有順序並防 reset 與抽題競態，不加入多房調度。題目、歷史及進度同交易；Next 綁定原 questionId，重送不可多前進。重置須二次確認與原 historyRevision、只清自己的歷史、無 playing 房間（含過期尚未結束者），不刪除 room_questions。
 - 新增 `game-engine` Function，沿用 Phase 5 signing key／origins／H-01 gate；state／image 共用 get-room-state 限流，修改共用 close-room 限流，不接受任意 scope。七個 action 包含私有 get-question-image，verify_jwt=false 仍須驗證 apikey 與三種自訂憑證。不可自動部署／重設既有 secrets。
@@ -66,6 +66,8 @@
 
 ## Phase 7 Realtime 邊界
 
+- 發布順序已調整：Phase 7 DEFERRED，先發布 Phase 9 Polling MVP。以下是保留的 Phase 7 設計，不是目前正式啟用的同步方式。
+
 - 新增增量草案 `supabase/migration-drafts/20261023180000_room_realtime.sql`，尚未納入 migrations，更沒有部署。禁止改寫 Phase 4～6；原 Cloud 仍為 Phase 6 版本，新的 room-system／game-engine 須另批准部署。
 - 採私有 Supabase Broadcast，不用 Postgres Changes，不對 anon 開放任何遊戲表或加入 publication。三個 DB trigger 只傳 `{changed:true}`／invalidate，固定房間 UUID topic；禁止使用會帶出 NEW／OLD row 的 broadcast_changes。
 - `get-realtime-ticket` 使用原 Host／Room／Player 憑證與 H-01 get-room-state gate。新 grant RPC 為 service_role-only INVOKER；JWT 固定 anon role、sub=opaque grant ID、rt_room、五分鐘期限，不含 Host／Player Token 或 Hash。不建立 Auth users。
@@ -75,3 +77,11 @@
 - useRoomSync 每房一訂閱：先查詢、訂閱後再查詢；重連／回前景／online 後重新拉取；serial read＋mutation epoch 防舊回應覆蓋，重複通知 debounce，訊號絕不直接修改題目。卸載取消 socket、timer、listener。
 - H-01 全域／來源／身分限流與可信來源設計不變。HTTP 429 依 Retry-After 自動恢復初始 Lobby、快照與照片，不改 cap，不用假 X-Forwarded-For 分散來源。grants 清理僅在驗證後有界 100 列，無假 Token 動態建桶。
 - Phase 7 本機測試以真實 Edge handlers／PGlite 草案／本機 WebSocket 協定 fixture 驗證，不是 Supabase Cloud Realtime／Deno runtime。最終瀏覽器 bridge 不用 connectToServer(url)（該 API 不支援改 URL），必須全面攔截並手動轉送本機，防誤連 Cloud。後續真實 Cloud 寫入／測試另批准。
+
+## Phase 9 Polling MVP 發布邊界
+
+- `VITE_ENABLE_REALTIME` 只有精確 true 才啟用 Phase 7；預設 false，Pages Workflow 固定 false，check-pages-env 拒絕提前開啟。保留 Phase 7 草案、Functions 與測試，禁止為本次發布部署它們或設定 ROOM_REALTIME_SIGNING_JWK。
+- 每個 Lobby／Game 共用單一 createRoomPolling，完成後 setTimeout、同時最多一個讀取；背景／離線暫停，回前景／online 恢復，離開／finished／失效停止。callback ref 避免重新 render 重建，mutation epoch 防止舊回應覆蓋。
+- 來源 get-room-state gate 每分鐘 30 次，room-state／game-state／image 共用。MVP 基準十秒、較大房以（玩家數＋Host）／每分鐘 18 次總狀態預算降頻；三人同來源約 18 次／分，不保證來源碰撞、多分頁或極快換題不會 429。依 Retry-After（秒或 HTTP 日期）及指數退避恢復，不改 H-01 cap／可信來源。
+- 相容已部署 Phase 6 DTO：初次最多兩次 API；waiting 通常一次 room-state，playing 通常一次 game-state，開場轉換額外讀 game。遊戲中的玩家名單保留開場快照，避免每輪再加一次 roster API；沒有答案或授權判斷搬到前端。
+- 本次只允許前端／測試／發布文件與 Workflow 準備，不修改 Cloud Migration／RLS／GRANT／Secrets／Functions、不 Commit／Push／執行 Pages。GitHub Variables、Pages Source、正式網址多人驗收尚未執行；任何發布需明確批准。詳見 docs/phase9-mvp-release-report.md。

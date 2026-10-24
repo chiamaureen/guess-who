@@ -58,7 +58,7 @@ if (chromium) {
       return route.abort('blockedbyclient')
     })
     const page = await value.newPage()
-    page.setDefaultTimeout(12000)
+    page.setDefaultTimeout(90000)
     page.on('pageerror', error => runtimeErrors.push(redact(error.message)))
     return page
   }
@@ -155,9 +155,9 @@ if (chromium) {
     })
     await check('manual refresh updates host roster and is cooldown-limited', async () => {
       await host.getByRole('button', { name: '重新整理名單' }).click()
+      assert.equal(await host.getByRole('button', { name: '請稍候 5 秒' }).isDisabled(), true)
       await host.waitForFunction(() => document.querySelectorAll('.player-list li').length === 2)
       assert.equal(await host.locator('.player-list li').count(), 2)
-      assert.equal(await host.getByRole('button', { name: '請稍候 5 秒' }).isDisabled(), true)
     })
     for (const width of [320, 375, 390, 768, 1024, 1440]) {
       for (const [page, route, name] of [[host, '', 'home'], [host, 'host', 'create'], [host, 'join', 'join'], [host, `room/${roomCode}`, 'host-lobby'], [player, `room/${roomCode}`, 'player-lobby']]) {
