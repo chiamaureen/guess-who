@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { ArrowUpRight } from "./ArrowUpRight";
 
 export function Layout() {
   const { pathname, hash } = useLocation();
@@ -30,7 +31,7 @@ export function Layout() {
             怎麼玩？
           </Link>
           <NavLink className="nav-join" to="/join">
-            加入遊戲 <span aria-hidden="true">↗</span>
+            加入遊戲 <span aria-hidden="true"><ArrowUpRight /></span>
           </NavLink>
         </nav>
       </header>
@@ -39,7 +40,7 @@ export function Layout() {
       </main>
       <footer className="site-footer">
         <Link className="footer-logo" to="/">
-          guess who<span>↗</span>
+          guess who<span><ArrowUpRight /></span>
         </Link>
         <p>把熟悉的面孔，變成相聚的樂趣。</p>
         <span>MADE FOR GOOD TIMES · 2026</span>

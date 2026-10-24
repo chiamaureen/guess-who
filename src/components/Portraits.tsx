@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useMagnetic } from '../hooks/useMagnetic'
+import { ArrowUpRight } from './ArrowUpRight'
 
 const faces = [
   { hair: '#282828', skin: '#f0bd8a', shirt: '#133eff', name: '捲髮人物', style: 'curly' },
@@ -33,7 +34,7 @@ export function Portraits() {
           {index === 2 && <><path d="M68 116q10-9 22-2q11-7 23 3l-23 4Z" fill={face.hair} /><g stroke="#38413a" strokeWidth="2" fill="none"><circle cx="69" cy="94" r="15" /><circle cx="111" cy="94" r="15" /><path d="M84 94h12" /></g></>}
         </svg>
       </div>
-      <span className="portrait-question"><span>0{index + 1} / GUESS WHO</span><b>↗</b></span>
+      <span className="portrait-question"><span>0{index + 1} / GUESS WHO</span><b><ArrowUpRight /></b></span>
     </MagneticPortrait>)}
     <span className="scene-sticker" aria-hidden="true">?</span>
   </div>

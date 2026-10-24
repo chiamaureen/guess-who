@@ -166,6 +166,7 @@ if (chromium) {
       await host.getByRole('button', { name: '結束遊戲', exact: true }).click()
       await host.getByRole('button', { name: '確認結束遊戲', exact: true }).click()
       await Promise.all([host, playerA, playerB].map(page => page.locator('[data-sync-status="stopped"]').waitFor()))
+      for (const page of [host, playerA, playerB]) assert.equal(await page.locator('.game-panel.lobby-panel').count(), 0)
       await sleep(1000)
       const counts = [...reads.values()].map(values => values.length)
       await sleep(12000)

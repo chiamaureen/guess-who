@@ -12,6 +12,16 @@ describe('page entry points', () => {
     expect(html).toContain('href="/join"')
     expect(html).toContain('id="how-to-play"')
   })
+  it('renders both homepage room links without magnetic or hover animation hooks', () => {
+    const html = renderToStaticMarkup(<MemoryRouter><HomePage /></MemoryRouter>)
+    const actions = html.match(/<div class="hero-actions">([\s\S]*?)<\/div>/)?.[1]
+    expect(actions).toBeDefined()
+    expect(actions?.match(/button-static/g)).toHaveLength(2)
+    expect(actions).toContain('href="/host"')
+    expect(actions).toContain('href="/join"')
+    expect(actions).toContain('<svg')
+    expect(actions).not.toContain('magnetic')
+  })
   it('loads genuine categories asynchronously without hardcoded or mock fallback categories', () => {
     const html = renderToStaticMarkup(<MemoryRouter><CreateRoomPage /></MemoryRouter>)
     expect(html).toContain('正在讀取分類')

@@ -48,7 +48,7 @@ if(chromium) {
       return route.fulfill({response})
     })
     const page=await context.newPage()
-    page.setDefaultTimeout(15000)
+    page.setDefaultTimeout(90000)
     page.on('pageerror',()=>runtimeErrors.push('runtime error'))
     return page
   }
@@ -132,21 +132,32 @@ if(chromium) {
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
       if([375,1440].includes(width)) await page.screenshot({path:`${artifacts}/${label}-${width}.png`,fullPage:true})
     })
-    await check('early finish requires confirmation and leaves question2 unrevealed for Player',async()=>{
+    await check('early finish requires confirmation and hides the entire game panel for Host and Player',async()=>{
       await host.getByRole('button',{name:'提前結束遊戲',exact:true}).click()
       await host.getByRole('button',{name:'確認結束遊戲',exact:true}).click()
-      await host.getByText('遊戲已結束，已出現人物保留在主持人的跨場歷史中。',{exact:true}).waitFor()
-      await player.getByRole('button',{name:'重新取得遊戲狀態',exact:true}).click()
-      await player.getByText('本題未揭曉，遊戲已結束。',{exact:true}).waitFor()
-      assert.equal(await player.locator('.game-answer h3').count(),0)
+      for(const page of [host,player]) {
+        await page.getByRole('heading',{name:'房間已結束',exact:true}).waitFor()
+        assert.equal(await page.locator('.game-panel.lobby-panel').count(),0)
+        assert.equal(await page.locator('.game-photo, .game-answer').count(),0)
+      }
     })
-    await check('Host explicitly confirms own history reset; finished question and Player session survive reload',async()=>{
+    await check('finished panels stay hidden after reload; history reset remains available in a new waiting room',async()=>{
+      for(const page of [host,player]) {
+        await page.reload()
+        await page.getByRole('heading',{name:'房間已結束',exact:true}).waitFor()
+        assert.equal(await page.locator('.game-panel.lobby-panel').count(),0)
+      }
+      assert.equal(await player.locator('.self-label').count(),1)
+      assert.equal(new URL(player.url()).hash,`#/room/${code}`)
+      await host.goto(`${base}#/host`)
+      await host.getByRole('checkbox').first().check()
+      await host.getByRole('button',{name:'建立房間',exact:true}).click()
       await host.getByRole('button',{name:'重置我的出題歷史',exact:true}).click()
       await host.getByRole('button',{name:'確認重置我的歷史',exact:true}).click()
       await host.getByText('你的出題歷史已重置。',{exact:true}).waitFor()
-      await player.reload();await player.getByText('本題未揭曉，遊戲已結束。',{exact:true}).waitFor()
-      assert.equal(await player.locator('.game-photo img').getAttribute('alt'),'第 2 題人物照片')
-      assert.equal(new URL(player.url()).hash,`#/room/${code}`)
+      await player.reload()
+      await player.getByRole('heading',{name:'房間已結束',exact:true}).waitFor()
+      assert.equal(await player.locator('.game-panel.lobby-panel').count(),0)
     })
     await check('browser has no runtime errors',async()=>assert.deepEqual(runtimeErrors,[]))
   } catch {

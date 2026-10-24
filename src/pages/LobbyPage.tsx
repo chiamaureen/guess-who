@@ -9,6 +9,7 @@ import { JoinRoomPage } from './JoinRoomPage'
 import { GamePanel } from '../components/GamePanel'
 import { useRoomSync } from '../hooks/useRoomSync'
 import type { RoomSnapshot } from '../types/realtime'
+import { ArrowUpRight } from '../components/ArrowUpRight'
 
 export function LobbyPage() {
   const { roomCode = '' } = useParams()
@@ -66,7 +67,7 @@ export function LobbyPage() {
     <p className="form-note" role="status" data-sync-status={sync.status}>{sync.message}</p>
     <div className="lobby-grid">
       <div className="lobby-panel lobby-info"><p className="form-kicker">( room code )</p><strong className="lobby-code" aria-label={`房間代碼 ${state.room.code}`}>{state.room.code}</strong>
-        {host && <><label htmlFor="invitation-link">玩家邀請連結</label><input id="invitation-link" readOnly value={invite} onFocus={event => event.target.select()} /><button type="button" className="button button-outline button-static" disabled={!waiting || action.loading} onClick={() => { void action.run(async () => { try { await navigator.clipboard.writeText(invite); return '邀請連結已複製。' } catch { throw new Error('無法自動複製，請選取上方連結手動複製。') } }); }}>複製邀請連結 ↗</button></>}
+        {host && <><label htmlFor="invitation-link">玩家邀請連結</label><input id="invitation-link" readOnly value={invite} onFocus={event => event.target.select()} /><button type="button" className="button button-outline button-static" disabled={!waiting || action.loading} onClick={() => { void action.run(async () => { try { await navigator.clipboard.writeText(invite); return '邀請連結已複製。' } catch { throw new Error('無法自動複製，請選取上方連結手動複製。') } }); }}>複製邀請連結 <ArrowUpRight /></button></>}
         <h2>已選分類</h2><ul className="category-tags">{state.categories.map(category => <li key={category.id}>{category.name}</li>)}</ul>
         {!host && <p className="lobby-waiting">{waiting ? '等待主持人開始遊戲' : state.room.status === 'playing' ? '一起猜猜看！' : '感謝加入，一起期待下一場。'}<small>主持人的遊戲操作將自動同步。</small></p>}
       </div>
@@ -75,9 +76,9 @@ export function LobbyPage() {
         <p className="form-note">等待室名單會定期自動更新。重新整理會重新驗證身分並恢復同步；遊戲中的名單保留開場快照。</p>
       </div>
     </div>
-    <GamePanel key={code} code={code} roomStatus={state.room.status} state={sync.snapshot?.game ?? null} onRefresh={sync.refresh}
+    {state.room.status !== 'finished' && <GamePanel key={code} code={code} roomStatus={state.room.status} state={sync.snapshot?.game ?? null} onRefresh={sync.refresh}
       onControl={(operation, questionId) => sync.mutate(() => roomService.controlSnapshot(code, operation, questionId))}
-      onReset={revision => sync.mutate(async () => { await roomService.resetHistory(code, revision, true); return roomService.getSnapshot(code) })} />
+      onReset={revision => sync.mutate(async () => { await roomService.resetHistory(code, revision, true); return roomService.getSnapshot(code) })} />}
     <Feedback error={action.error} message={action.message} />
     <div className="lobby-actions">
       {host && waiting && (!confirmClose ? <button className="text-button danger" disabled={action.loading} onClick={() => setConfirmClose(true)}>關閉房間</button> : <><p>確定關閉？玩家將無法再加入。</p><button className="button button-outline button-static" disabled={action.loading} onClick={() => { void action.run(async () => { await sync.mutate(async () => { await roomService.close(code); return roomService.getSnapshot(code) }); setConfirmClose(false); return '房間已關閉。'; }); }}>確認關閉房間</button><button className="text-button" onClick={() => setConfirmClose(false)}>取消</button></>)}

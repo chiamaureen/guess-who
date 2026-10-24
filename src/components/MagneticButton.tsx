@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useMagnetic } from '../hooks/useMagnetic'
+import { ArrowUpRight } from './ArrowUpRight'
 
 type MagneticButtonProps = {
   children: ReactNode
@@ -12,7 +13,7 @@ export function MagneticButton({ children, icon, variant = 'primary', to, disabl
   const zoneRef = useMagnetic<HTMLSpanElement>(disabled)
 
   const className = `button button-${variant} magnetic-button`
-  const content = <><span className="button-label" data-magnetic-label>{children}</span><span aria-hidden="true">{icon}</span></>
+  const content = <><span className="button-label" data-magnetic-label>{children}</span><span aria-hidden="true">{icon === '↗' ? <ArrowUpRight /> : icon}</span></>
 
   return <span className="magnetic-zone" ref={zoneRef}>
     {to !== undefined

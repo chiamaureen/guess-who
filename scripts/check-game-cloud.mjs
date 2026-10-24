@@ -207,13 +207,16 @@ async function main(resumeDirectory) {
     await button.click()
     await waitQuestion(page, number, revealed)
   }
-  const reloadBoth = async (host, player, number, revealed) => {
+  const reloadBoth = async (host, player, number, revealed, finished = false) => {
     const questionId = states.get('host').question.id
     for (const [name, page] of [['host', host], ['player', player]]) {
       await pace(8)
       const before = await credentials(page, firstRoom)
       await page.reload()
-      await waitQuestion(page, number, revealed)
+      if (finished) {
+        await page.locator('[data-sync-status="stopped"]').waitFor()
+        assert.equal(await page.locator('.game-panel.lobby-panel').count(), 0)
+      } else await waitQuestion(page, number, revealed)
       assert.deepEqual(await credentials(page, firstRoom), before)
       assert.equal(states.get(name).question.id, questionId)
       assert.equal(states.get(name).question.revealed, revealed)
@@ -319,8 +322,9 @@ async function main(resumeDirectory) {
       await pace(0, 1)
       await host.getByRole('button', { name: '結束遊戲', exact: true }).click()
       await host.getByRole('button', { name: '確認結束遊戲', exact: true }).click()
-      await host.getByText('遊戲已結束，已出現人物保留在主持人的跨場歷史中。', { exact: true }).waitFor()
-      await reloadBoth(host, player, 15, true)
+      await host.getByRole('heading', { name: '房間已結束', exact: true }).waitFor()
+      assert.equal(await host.locator('.game-panel.lobby-panel').count(), 0)
+      await reloadBoth(host, player, 15, true, true)
       assert.equal(states.get('host').room.status, 'finished')
       assert.equal(states.get('player').room.status, 'finished')
       const closed = await api('room-system', 'close-room', { roomCode: firstRoom }, host, firstRoom)

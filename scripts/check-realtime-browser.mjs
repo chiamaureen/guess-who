@@ -176,7 +176,10 @@ try {
   await check('Finish after question15 automatically closes both Player screens and preserves fifteen distinct history entries', async () => {
     await host.getByRole('button', { name: '結束遊戲', exact: true }).click()
     await host.getByRole('button', { name: '確認結束遊戲', exact: true }).click()
-    for (const page of [host, playerA, playerB]) await page.getByText('遊戲已結束，已出現人物保留在主持人的跨場歷史中。', { exact: true }).waitFor()
+    for (const page of [host, playerA, playerB]) {
+      await page.getByRole('heading', { name: '房間已結束', exact: true }).waitFor()
+      assert.equal(await page.locator('.game-panel.lobby-panel').count(), 0)
+    }
     const totals = (await fixture.database.query('SELECT count(*)::int AS total,count(DISTINCT celebrity_id)::int AS distinct_people FROM public.room_questions')).rows[0]
     assert.deepEqual(totals, { total: 15, distinct_people: 15 })
     assert.equal(Number((await fixture.database.query('SELECT count(*)::int AS total FROM public.host_question_history')).rows[0].total), 15)
