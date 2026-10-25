@@ -12,16 +12,18 @@ import { gameVerificationSql } from './make-game-verification.mjs'
 
 const project = 'fgvajdnzrnptdjurhjfo'
 const argumentsList = process.argv.slice(2)
-const release = argumentsList.length === 4 && argumentsList[3] === '--first-playable'
+const liveDirectory = argumentsList.length === 6 && argumentsList[3] === '--first-playable' && argumentsList[4] === '--resume-game' && /^\/tmp\/guess-who-phase6-cloud-[A-Za-z0-9]+$/.test(argumentsList[5]) ? argumentsList[5] : undefined
+const setupDirectory = argumentsList.length === 6 && argumentsList[3] === '--first-playable' && argumentsList[4] === '--resume-setup' && /^\/tmp\/guess-who-phase6-cloud-[A-Za-z0-9]+$/.test(argumentsList[5]) ? argumentsList[5] : undefined
+const release = argumentsList[3] === '--first-playable' && (argumentsList.length === 4 || !!setupDirectory || !!liveDirectory)
 const resumeDirectory = argumentsList.length === 5 && argumentsList[3] === '--resume-qa' && /^\/tmp\/guess-who-phase6-cloud-[A-Za-z0-9]+$/.test(argumentsList[4]) ? argumentsList[4] : undefined
 if (argumentsList.slice(0, 3).join(' ') !== `--allow-test-writes --project-ref ${project}` || !(argumentsList.length === 3 || resumeDirectory || release)) {
   console.log('BLOCKED: explicit --allow-test-writes and fixed --project-ref required; this tool creates real Cloud QA data.')
   process.exitCode = 2
 } else {
-  await main(resumeDirectory)
+  await main(resumeDirectory,setupDirectory,liveDirectory)
 }
 
-async function main(resumeDirectory) {
+async function main(resumeDirectory,setupDirectory,liveDirectory) {
   const config = readSupabaseConfig(await readEnvironment())
   assert.equal(config.url, `https://${project}.supabase.co`)
   assert.equal((await readFile('supabase/.temp/project-ref', 'utf8')).trim(), project)
@@ -30,9 +32,28 @@ async function main(resumeDirectory) {
   const origin = new URL(base).origin
   const artifacts = await mkdtemp('/tmp/guess-who-phase6-cloud-')
   await chmod(artifacts, 0o700)
-  const previous = resumeDirectory ? JSON.parse(await readFile(`${resumeDirectory}/results.json`, 'utf8')) : undefined
-  const savedSessions = resumeDirectory ? JSON.parse(await readFile(`${resumeDirectory}/sessions.json`, 'utf8')).sessions : []
-  if (previous) {
+  const recoveryDirectory=resumeDirectory??setupDirectory??liveDirectory
+  const previous = recoveryDirectory ? JSON.parse(await readFile(`${recoveryDirectory}/results.json`, 'utf8')) : undefined
+  const savedSessions = recoveryDirectory ? JSON.parse(await readFile(`${recoveryDirectory}/sessions.json`, 'utf8')).sessions : []
+  if(liveDirectory) {
+    assert.equal(previous.project,project)
+    assert.equal(previous.result,'FAIL')
+    assert.equal(previous.roomCodes.length,1)
+    assert.ok(previous.completedQuestions>0&&previous.completedQuestions<15)
+    assert.equal(previous.runtimeOrSecurityErrors,0)
+    assert.equal(previous.questions.length,previous.completedQuestions)
+    assert.ok(['host','player'].every(name=>savedSessions.some(session=>session.name===name)))
+    assert.match(previous.roomCodes[0],/^[A-HJ-NP-Z2-9]{6}$/)
+  }
+  if(setupDirectory) {
+    assert.equal(previous.project,project)
+    assert.equal(previous.result,'FAIL')
+    assert.equal(previous.completedQuestions,0)
+    assert.equal(previous.roomCodes.length,0)
+    assert.ok(savedSessions.some(session=>session.name==='host'&&session.storage['guess-who:v1:host-bootstrap']))
+    assert.ok(savedSessions.every(session=>Object.keys(session.storage).every(key=>['guess-who:v1:host-bootstrap','guess-who:v1:host'].includes(key))))
+  }
+  if (resumeDirectory) {
     assert.equal(previous.project, project)
     assert.equal(previous.result, 'FAIL')
     assert.equal(previous.completedQuestions, 0)
@@ -51,8 +72,8 @@ async function main(resumeDirectory) {
   const imageResponses = new Map([['host', new Map()], ['player', new Map()]])
   const pending = new Set()
   const errors = []
-  const checks = []
-  const questions = []
+  const checks = liveDirectory ? previous.checks.filter(check=>check.result==='PASS') : []
+  const questions = liveDirectory ? [...previous.questions] : []
   const pages = new Map()
   const contexts = []
   const roomCodes = []
@@ -66,6 +87,7 @@ async function main(resumeDirectory) {
   let firstRoom
   let secondRoom
   let hostId
+  let resumedQuestion
   let windowStarted = Date.now()
   let pauses = 0
   let rateResponses = 0
@@ -163,11 +185,12 @@ async function main(resumeDirectory) {
   const pageFor = async name => {
     const context = await browser.newContext({ viewport: { width: name === 'host' ? 1440 : 390, height: 1000 } })
     contexts.push(context)
-    if (previous) await context.addInitScript(storage => {
-      if (location.origin !== 'http://localhost:5173' || localStorage.getItem('guess-who:qa-imported')) return
+    const saved=savedSessions.find(session=>session.name===name)
+    if (saved) await context.addInitScript(({storage,origin}) => {
+      if (location.origin !== origin || localStorage.getItem('guess-who:qa-imported')) return
       for (const [key, value] of Object.entries(storage)) localStorage.setItem(key, value)
       localStorage.setItem('guess-who:qa-imported', '1')
-    }, savedSessions.find(session => session.name === name).storage)
+    }, {storage:saved.storage,origin})
     const page = await context.newPage()
     page.setDefaultTimeout(release ? 120000 : 45000)
     page.on('pageerror', () => errors.push('browser runtime error'))
@@ -217,7 +240,7 @@ async function main(resumeDirectory) {
     images.get(name).set(questionId, digest)
   }
   const refreshPlayer = async (page, number, revealed) => {
-    if(release) { await waitQuestion(page,number,revealed); return }
+    if(release) { await page.bringToFront(); await waitQuestion(page,number,revealed); return }
     await pace(3)
     const button = page.getByRole('button', { name: '重新取得遊戲狀態', exact: true })
     await button.waitFor()
@@ -246,11 +269,45 @@ async function main(resumeDirectory) {
     await check('read-only target, bank and existing-data baseline', async () => {
       baseline = (await query('baseline', `BEGIN READ ONLY; SELECT jsonb_build_object(${countsSql}) AS counts, (SELECT count(DISTINCT celebrity.id) FROM public.celebrities AS celebrity JOIN public.celebrity_categories AS membership ON membership.celebrity_id=celebrity.id JOIN public.categories AS category ON category.id=membership.category_id AND category.is_active WHERE category.id='${category}' AND celebrity.is_approved AND EXISTS (SELECT 1 FROM public.game_image_assets AS asset WHERE asset.celebrity_id=celebrity.id AND asset.is_approved)) AS eligible; ROLLBACK;`))[0]
       assert.equal(Number(baseline.eligible), 15)
+      if(setupDirectory||liveDirectory) baseline=previous.baseline
     })
     browser = await chromium.launch({ channel: 'chrome', headless: true })
     const host = await pageFor('host')
     const player = await pageFor('player')
-    if (previous) await check('resume only existing authorized QA Host and Player at unrevealed question1; no new identity or first room', async () => {
+    if(liveDirectory) await check('resume same authorized QA room and sessions; verify immutable earlier question/image receipts; no reset or new room',async()=>{
+      firstRoom=previous.roomCodes[0]
+      roomCodes.push(firstRoom)
+      for(const page of [host,player]) await page.goto(`${base}#/room/${firstRoom}`)
+      await host.getByRole('region',{name:'遊戲區域'}).waitFor()
+      const current=await api('game-engine','get-game-state',{roomCode:firstRoom},host,firstRoom)
+      assert.equal(current.room.status,'playing')
+      assert.ok(current.question.number===previous.completedQuestions+1)
+      assert.equal(current.question.revealed,true)
+      resumedQuestion=current.question.number
+      const prior=await query('resumed-questions',`BEGIN READ ONLY; SELECT question.id,question.question_number AS number,question.revealed_at IS NOT NULL AS revealed,encode(sha256(asset.png),'hex') AS image_sha256 FROM public.room_questions AS question JOIN public.rooms AS room ON room.id=question.room_id JOIN public.game_image_assets AS asset ON asset.id=question.game_image_id WHERE room.room_code='${firstRoom}' ORDER BY question.question_number; ROLLBACK;`)
+      assert.equal(prior.length,resumedQuestion)
+      for(const row of prior) {
+        assert.ok(approvedImages.has(row.image_sha256))
+        assert.equal(row.revealed,true)
+        if(row.number<=previous.completedQuestions) {
+          assert.equal(previous.questions[row.number-1].id,row.id)
+          images.get('host').set(row.id,row.image_sha256)
+          images.get('player').set(row.id,row.image_sha256)
+        }
+      }
+      await waitQuestion(host,resumedQuestion,true)
+      await refreshPlayer(player,resumedQuestion,true)
+      assert.equal(states.get('host').question.id,states.get('player').question.id)
+      assert.equal(states.get('host').question.answer,states.get('player').question.answer)
+      assert.equal(images.get('host').get(current.question.id),images.get('player').get(current.question.id))
+      assert.ok(previous.distinctHostImages>=resumedQuestion&&previous.distinctPlayerImages>=resumedQuestion)
+      questions.push({id:current.question.id,number:resumedQuestion,hiddenPlayerKeys:['id','number','revealed'],hostAndPlayerImage:'PASS',revealedAnswerMatches:true,resumedAfterReveal:true,priorProof:'Prior run reached the protected reveal only after its unrevealed DTO/image assertions; interrupted before final question checkpoint. Earlier PASS receipts retained, failed attempt remains in original file.'})
+      hostId=await host.evaluate(()=>JSON.parse(localStorage.getItem('guess-who:v1:host')).hostId)
+      assert.equal(await player.evaluate(()=>localStorage.getItem('guess-who:v1:host')),null)
+      await host.getByRole('button',{name:'下一題',exact:true}).click()
+      await waitQuestion(host,resumedQuestion+1,false)
+    })
+    else if (resumeDirectory) await check('resume only existing authorized QA Host and Player at unrevealed question1; no new identity or first room', async () => {
       firstRoom = previous.roomCodes[0]
       roomCodes.push(firstRoom)
       for (const page of [host, player]) await page.goto(`${base}#/room/${firstRoom}`)
@@ -260,9 +317,10 @@ async function main(resumeDirectory) {
       hostId = await host.evaluate(() => JSON.parse(localStorage.getItem('guess-who:v1:host')).hostId)
       assert.equal(await player.evaluate(() => localStorage.getItem('guess-who:v1:host')), null)
     })
-    else await check('new anonymous Host creates political-only room; independent Player joins via invitation', async () => {
+    else await check(`new anonymous Host creates ${release ? 'English-singers group' : 'political-only'} room; independent Player joins via invitation`, async () => {
       await host.goto(`${base}#/host`)
       const selection = host.getByRole('checkbox', { name: release ? /英語歌手/ : '政治人物' })
+      await selection.waitFor()
       if(release) {
         assert.equal(await host.getByRole('checkbox').count(),8)
         assert.equal(await host.locator('input[type=checkbox]:disabled').count(),7)
@@ -289,9 +347,9 @@ async function main(resumeDirectory) {
       }
       assert.equal(await player.evaluate(() => localStorage.getItem('guess-who:v1:host')), null)
     })
-    await check('Player cannot start; Host starts actual question1 with private answer', async () => {
+    if(!liveDirectory) await check('Player cannot start; Host starts actual question1 with private answer', async () => {
       await api('game-engine', 'start-game', { roomCode: firstRoom }, player, firstRoom, 403, 'FORBIDDEN')
-      if (!previous) {
+      if (!resumeDirectory) {
         await pace(2, 1)
         await host.getByRole('button', { name: '開始遊戲', exact: true }).click()
         await waitQuestion(host, 1, false)
@@ -300,7 +358,7 @@ async function main(resumeDirectory) {
       const state = await api('game-engine', 'get-game-state', { roomCode: firstRoom }, host, firstRoom)
       assert.ok(names.has(state.question.answer))
     })
-    for (let number = 1; number <= 15; number++) {
+    for (let number = liveDirectory ? resumedQuestion+1 : 1; number <= 15; number++) {
       await check(`question ${number}: private images, answer isolation, reveal and progress`, async () => {
         await waitQuestion(host, number, false)
         await refreshPlayer(player, number, false)
@@ -412,12 +470,19 @@ async function main(resumeDirectory) {
       }
       assert.equal(errors.length, 0)
     })
-  } catch {
-    checks.push({ name: stage, result: 'FAIL', details: 'Stopped; raw errors, bodies, answers and credentials withheld. No reset, cleanup, alternate write or redeploy.' })
+  } catch (cause) {
+    const locations=String(cause?.stack??'').split('\n').filter(line=>/^\s+at .*check-game-cloud\.mjs:\d+:\d+\)?$/.test(line)).map(line=>line.match(/check-game-cloud\.mjs:\d+:\d+/)[0])
+    const countMismatch=String(cause?.stderr??'').match(/Unexpected (categories|celebrities|celebrity_categories|game_image_assets|hosts|rooms|room_categories|room_players|room_questions|host_question_history|question_groups|celebrity_question_groups|room_question_groups) row count/)
+    checks.push({ name: stage, result: 'FAIL', failureType:cause?.name,locations, ...(countMismatch?{reason:'GLOBAL_ROW_COUNT_MISMATCH',table:countMismatch[1]}:{}), details: 'Stopped; raw errors, bodies, answers and credentials withheld. No reset, cleanup, alternate write or redeploy.' })
+    for(const [name,page] of pages) {
+      await page.screenshot({path:`${artifacts}/${name}-failure.png`,fullPage:true}).catch(()=>undefined)
+      const diagnostic=await page.evaluate(()=>({visibility:document.visibilityState,online:navigator.onLine,sync:document.querySelector('[data-sync-status]')?.getAttribute('data-sync-status'),question:Array.from(document.querySelectorAll('.eyebrow')).map(node=>node.textContent).find(text=>text.includes('QUESTION')),imageLoaded:!!document.querySelector('.game-photo img')?.naturalWidth})).catch(()=>({unavailable:true}))
+      await writeFile(`${artifacts}/${name}-diagnostic.json`,JSON.stringify(diagnostic),{mode:0o600})
+    }
     process.exitCode = 1
   } finally {
     await checkpoint().catch(() => undefined)
-    const result = { project, label, result: checks.some(check => check.result === 'FAIL') ? 'FAIL' : 'PASS', completedAt: new Date().toISOString(), browser: browser?.version(), backend: 'Real Supabase Cloud Edge Functions and PostgreSQL; actual Host/Player Chrome contexts; no fixture, mock, interception or request redirection', resumedFrom: resumeDirectory, baseline, roomCodes, completedQuestions: questions.length, distinctHostImages: new Set(images.get('host').values()).size, distinctPlayerImages: new Set(images.get('player').values()).size, checks, questions, database, rateLimitPauses: pauses, rateLimitResponses: rateResponses, runtimeOrSecurityErrors: errors.length, credentials: 'Only owner-private temporary sessions.json; never printed or stored in Repository', artifacts }
+    const result = { project, label, result: checks.some(check => check.result === 'FAIL') ? 'FAIL' : 'PASS', completedAt: new Date().toISOString(), browser: browser?.version(), backend: 'Real Supabase Cloud Edge Functions and PostgreSQL; actual Host/Player Chrome contexts; no fixture, mock, interception or request redirection', resumedFrom: recoveryDirectory, baseline, roomCodes, completedQuestions: questions.length, distinctHostImages: new Set(images.get('host').values()).size, distinctPlayerImages: new Set(images.get('player').values()).size, checks, questions, database, rateLimitPauses: pauses, rateLimitResponses: rateResponses, runtimeOrSecurityErrors: errors.length, credentials: 'Only owner-private temporary sessions.json; never printed or stored in Repository', artifacts }
     await writeFile(`${artifacts}/results.json`, JSON.stringify(result, null, 2), { mode: 0o600, flag: 'wx' })
     console.log(JSON.stringify({ ...result, questions: undefined }, null, 2))
     await Promise.all(contexts.map(context => context.close()))

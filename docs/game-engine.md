@@ -1,5 +1,13 @@
 # Guess Who — Single Room Game Engine
 
+## Phase9 相容更新（已部署）
+
+2026-10-25 已部署私有WebP／JPEG驗證及群組條件，原PNG繼續有效；沿用game_image_assets.png bytea和RPC的png JSON key，不更換Storage、不公開原圖URL。get-question-image從bytes判別MIME，回傳中性photo.webp／photo.jpg／photo.png、no-store及nosniff。WebP只接受單張metadata-free VP8、≤1024px／300KiB；不得以放寬安全上限處理超大原圖。
+
+新房間選擇的group IDs保存於room_question_groups，game_engine_action在開場DISTINCT計數、分類抽取、人物抽取三處套用game_engine_group_eligible；同交易、Host→Room鎖序、15題、C去重與questionId重試語意保持。舊房沒有群組關聯時走原分類條件。
+
+圖片作者、來源、授權及修改說明保存於人物私有欄位；只有Host或已揭曉Player DTO含credits，未揭曉Player仍只有題號／中性questionId／revealed。英語歌手首批用經來源與視覺工程審核的PD政府照片，不把其他CC或動畫候選自動核准。詳見 [Phase9交付報告](phase9-first-playable-cloud-release.md)。
+
 Phase 6 Migration／game-engine v1 與 15 位題庫已在明確批准下上雲，真正 15 題 [Cloud Acceptance](phase6-cloud-acceptance-report.md) 已 PASS。Phase 7 本機加入私有 Broadcast 失效通知及自動拉取最新狀態，尚待部署批准，見 [Realtime Report](phase7-realtime-report.md)。本文件不取代 [Phase 5 房間授權](room-system.md)。
 
 ## 架構

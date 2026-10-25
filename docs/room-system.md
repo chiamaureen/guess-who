@@ -1,5 +1,13 @@
 # Guess Who — Room System
 
+## Phase9 群組入口（已部署）
+
+2026-10-25 新增受長期 Host Credential 保護的 get-question-groups，沿用 get-room-state 的 H-01 gate，不以 Room Code 當身分。僅回傳八組 id／name／slug／categoryId／available／selectable／reason，沒有答案或人物清單。available 排除該 Host C 歷史，未達15位或分類inactive的分組不可選。
+
+create-room 新增 groupIds（1～8個唯一UUID），與原 categoryIds 互斥；由 room_group_action 推導分類、確認每組至少15位，同一Transaction建立房間與兩種關聯。重試須完全相同分組，不會重開房間；舊category-only API保留相容，開局仍由遊戲引擎確認題庫數量。新RPC為service_role-only／INVOKER／空search_path，CORS與原Host／Room／Player憑證不變。
+
+本次沒有啟用Phase7：room-system的Realtime程式碼保留，但entry預設不讀取ROOM_REALTIME_SIGNING_JWK，未設定ROOM_ENABLE_REALTIME；ticket入口仍不可用。Secrets沿用原值，不把後端Key放入VITE。最新發布與真實QA收據見 [Phase9交付報告](phase9-first-playable-cloud-release.md)。
+
 **Phase 5 DONE：** 已經使用者明確批准，完成 Cloud Migration、Secrets、room-system v1 與真實多人驗收，見 [Cloud Deployment Report](phase5-cloud-deployment-report.md)。Phase 6 其後已完成真正 15 題 Cloud 驗收；本機 Phase 7 新增私有 Broadcast 授權，尚未部署，見 [Realtime Report](phase7-realtime-report.md)。原有六操作與自訂憑證授權保持不變。
 
 ## Phase 7 本機增量

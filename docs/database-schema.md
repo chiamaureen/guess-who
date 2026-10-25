@@ -1,5 +1,11 @@
 # Guess Who — Database Schema
 
+## 2026-10-25 部署更新
+
+原 Phase4～6 Migration 不改寫；目前另外部署 WebP／JPEG 安全驗證、inactive youtubers，以及 question_groups／celebrity_question_groups／room_question_groups 三張私表。原七分類和既有房間／題目／歷史保留。三表均 ENABLE／FORCE RLS、browser 零 GRANT；service_role 只有 SELECT／INSERT／DELETE，沒有為 row lock 額外放寬 UPDATE。
+
+room_group_action(text,jsonb) 驗證長期 Host hash、計算扣除 C 歷史的 DISTINCT 合格人數、同交易保存分組建房；game_engine_group_eligible(uuid,uuid) 用於開局人數、隨機分類及人物三處查詢。兩者均 INVOKER／空 search_path／service_role-only。沒有群組的舊房間仍走原分類條件，不修改舊題目。詳見 [Phase9交付](phase9-first-playable-cloud-release.md)；以下原階段設計保留作歷史紀錄。
+
 依據 Phase 4 Database Design Specification **v1.2**。第 1–8 節保留 Phase 4 baseline／當時的後續設計；第 9 節為已部署 Phase 5，第 10 節為 Phase 6 增量。房間、引擎與 15 位正式題庫已上雲，完整 Cloud 15 題已驗收；第 11 節為尚未部署的 Phase 7 Realtime 草案。
 
 ## 1. 架構與範圍

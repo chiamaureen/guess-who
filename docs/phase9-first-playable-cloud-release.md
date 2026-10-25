@@ -5,9 +5,10 @@
 ## 1. 網址與目前結論
 
 - 正式網址：https://chiamaureen.github.io/guess-who/
-- 新版前端 Commit／Actions：尚待本次提交、發布與成功收據。
+- 已發布程式 Commit：`3e8989d7deb385c0f2bc9e8c620bdb74517a9159`。
+- [GitHub Actions 40159628859](https://github.com/chiamaureen/guess-who/actions/runs/40159628859)：build／deploy 均 completed／success；實際公開網址 HTTP200，載入新版 `/guess-who/assets/index-DtKIZ-S9.js`，不是只檢查本機 dist。
 - Supabase：三份增量 Migration、room-system／game-engine 相容更新已成功部署；沒有部署 Phase7、設定 Secrets 或更換 Storage 架構。
-- 英語歌手：15位已審核、已匯入，可供新的匿名 Host 開局；公開網址完整15題驗收尚待執行。
+- 英語歌手：15位已審核、已匯入，**公開網址同一房間15題遊戲驗收 PASS（中途恢復續測）**，新的匿名 Host 可以開局。嚴格「全站資料列增量」測試仍 FAIL，原因與補充核對如下，不能抹除原收據或稱所有檢查皆 PASS。
 - **Phase 9 最終120位：NOT DONE**。其餘七組保留、不可選，尚有圖片／授權審核缺口。
 
 ## 2. 分組實際人數
@@ -18,7 +19,7 @@
 |---|---:|---:|---:|---|---:|
 | 國外演員 | 1 | 0 | 0 | NOT READY | 15 |
 | 台灣演員 | 0 | 0 | 0 | NOT READY | 15 |
-| 英語歌手 | 15 | 15 | 15 | 題庫 READY；公開驗收待執行 | 0 |
+| 英語歌手 | 15 | 15 | 15 | 已開放；真實15題 PASS，含恢復續測 | 0 |
 | 台灣歌手 | 0 | 0 | 0 | NOT READY | 15 |
 | 運動員 | 1 | 0 | 0 | NOT READY | 15 |
 | 台灣政治人物 | 0 | 0 | 0 | NOT READY | 15 |
@@ -72,11 +73,33 @@ verify_jwt=false不等於公開授權，apikey、自訂Host／Room／Player權�
 | 正式Cloud Schema／RLS／GRANT | PASS，唯讀驗證原政治人物與私有表／RPC權限 |
 | 正式匯入／關聯 | PASS，15/15、WebP完整性、八組count僅英語歌手15 |
 | Git whitespace check | 四份新增SQL僅有EOF空白行警告，其中三份已部署，為保留部署bytes不事後修改；不是程式／安全測試失敗 |
-| Pages新版部署 | 尚待執行；preflight公開Variables／Source=workflow／無CNAME PASS |
-| 公開網址完整15題／手機viewport／Session／答案隔離 | 尚待執行，不沿用本機或歷史驗收當作PASS |
+| Pages新版部署 | PASS，程式Commit 3e8989d，Actions 40159628859 的 build／deploy 成功；公開HTTP200與新版JS確認 |
+| 公開網址15題遊戲／Session／答案隔離 | PASS，X43BT3 同房續測完成；實際Chrome155、CloudAPI、每張WebP比對已審SHA；不是單次不中斷執行 |
+| 公開手機viewport | PASS，390px獨立Player，自動Polling看題／揭曉、圖片與換題；無橫向溢出；不是實體手機 |
+| 原驗收工具全域列數 | FAIL，hosts預期8、實際9；另有一個未建房的匿名身分，不能歸因為已確認的其他使用者或自行刪除 |
+| 補充唯讀資料完整性 | PASS，QA房15題／15人／15歷史；部署前與匯入後所有舊資料逐列／摘要不變，其他表增量精確；RPC／CHECK／Migration未改 |
+| 最後回歸／安全檢查 | 325項、Edge TypeScript、Build重新PASS；第一次sandbox禁止127.0.0.1導致EPERM，取得所需權限重跑後零失敗，未跳過測試；git diff --check乾淨；216工作檔／467歷史blob未發現敏感憑證 |
 | 實體iPhone／Android | NOT TESTED，Chrome窄viewport不等於實機 |
 
 正式Cloud QA使用現有check-game-cloud.mjs加--first-playable，固定公開Pages，不Mock、不攔截改用fixtures；新匿名Host＋獨立Player，依序完成15題，驗每張圖SHA／MIME／解碼、揭曉前Player窄DTO、揭曉後署名、Next重送、無第16題、Host／Player reload、C模式15筆歷史及再建房拒絕。QA只新增必要資料，結束房間而不刪除／重設歷史。
+
+### 本次真實公開網站收據
+
+- QA房 `X43BT3`，固定英語歌手分組，一位新的匿名Host、一個獨立390px Player，沒有Cloud攔截／fixture／Mock。Player不能開始；Host可見當前答案，Player未揭曉DTO僅含id／number／revealed，沒有姓名、人物ID、來源、Token或hash。
+- 15題均完成揭曉，15個不同人物；Host與Player各取得15張不同的私有WebP，已逐張對照核准檔SHA、實際解碼、MIME、中性檔名、no-store及無Metadata。玩家靠正式Polling自動更新，不按Refresh繼續題目；Host重送Next不跳題，第15題後Next被拒，最終finished、ended_at存在。
+- Host與Player在未揭曉、已揭曉和結束後重新載入均恢復原Session／題號／揭曉狀態；結束後game-panel／lobby-panel隱藏。Host歷史保留15位；同Host再到建立頁時英語歌手剩0、卡片／建房鈕disabled，直接帶合法Host Credential建立同分組也回409 INSUFFICIENT_QUESTIONS，沒有建立第二房、沒有reset。
+- 第一次測試工具在建房前過早讀取尚未載入的checkbox數而失敗，已修正等待資料完成，不因此重建Host。其後房間測試在第5題揭曉後、最終checkpoint前中斷，當時未保存足夠錯誤診斷，原因未確定；保留FAIL收據，不能假稱整段不中斷通過。續測沿用同房／同Host／同Player，先核對前5題不可變DB與圖片收據，再完成6～15題；第5題揭曉前斷言的依據明載於續測收據。
+- 原工具最後的全域精確列數檢查 FAIL：hosts從7到9，預期只有QA新增1位；唯讀查到QA之外的一位身分在QA開始後建立、尚無任何房間，但無法只憑這些資料判定建立者。**保留原FAIL，不刪該身分、不調高期望值假裝原測試PASS，也不重跑整場產生更多資料。**
+- 補充唯讀核對證實：QA房15題、15不同人物、15揭曉、15筆first_room_history，其他全域增量均吻合。部署前及匯入後每一筆既有分類／人物／分類關聯／圖片／房間摘要／題目摘要／歷史摘要原封不動；匯入後的函式定義、CHECK與Migration history亦相同。因此「此房真實15題遊戲及既有資料保留」為PASS，「原工具全站唯一寫入假設」仍為FAIL，不混為一談。
+- 最終Cloud：categories8、celebrities30、game_image_assets30、rooms12、room_questions39、host_question_history36、question_groups8；舊房11／舊題24／舊歷史21全部保留，本次QA新增房1／題15／歷史15。Private圖片無新增公開Bucket或直接SELECT權限。
+- Owner-private收據：`/tmp/guess-who-phase6-cloud-MAQtkC/results.json`（前段失敗）、`/tmp/guess-who-phase6-cloud-l3FCtw/results.json`（原全域檢查FAIL）及同目錄`final-acceptance.json`（補充唯讀／公開頁恢復PASS）。原始憑證僅該私有目錄sessions.json，不提交。長期備份在ignored `data/question-bank/prepared/phase9-cloud-release-20261025/`。
+
+### Git與前端部署安全
+
+- `.env.local`無追蹤，`.env.*`忽略且只保留示意`.env.example`；prepared圖片／SQL／備份忽略，未進Git或dist。後端Secret、Service Role、PAT、資料庫密碼與私鑰未放入VITE。Publishable Key按用途由Actions Variables在Build提供。
+- GitHub Pages Source=GitHub Actions、Custom Domain空白；Vite `/guess-who/`、HashRouter、最小權限及固定Action版本保留。正式Origin `https://chiamaureen.github.io` 的兩個Functions OPTIONS204，非授權Origin403且無Allow-Origin。
+- Phase7仍DEFERRED，前端Realtime flag=false，沒有部署其Migration或設定JWK；既有H-01與後端Secrets未改。
+- 最後的文件／QA工具修正另行Commit與Push；網站仍由上述程式Commit的成功Actions供應。只有文件或QA工具更動不需再發一次Pages，也不宣稱程式Commit等於後續文件Commit。
 
 ## 5. 其餘七組阻礙
 
@@ -84,7 +107,7 @@ verify_jwt=false不等於公開授權，apikey、自訂Host／Room／Player權�
 - 演員、台灣歌手、運動員仍需逐張解除本人／多人裁切、權利聲明與CC署名時機關卡；台灣政治人物14張自訂Attribution條款不能改標CC。YouTubers另有兩位缺來源圖。
 - 動畫角色缺少可公開再利用及改編的權利證據，不能拿官圖／劇照、粉絲頁尾CC條款當成角色授權。
 - 使用者補充三個角色網站已逐一查閱：[chiikawa Google Sites](https://sites.google.com/view/chiikawa-hw/)可讀，只有角色介紹與copyright footer，未發現可再利用圖像的授權；[飛天小女警Fandom](https://twami.fandom.com/zh/wiki/%E9%A3%9B%E5%A4%A9%E5%B0%8F%E5%A5%B3%E8%AD%A6%E8%A7%92%E8%89%B2%E5%88%97%E8%A1%A8?variant=zh-tw)是角色名單，有一般社群CC-BY-SA頁尾但沒有逐張角色圖權利證據；[海綿寶寶Fandom](https://spongebob.fandom.com/zh/wiki/%E6%B5%B7%E7%B6%BF%E5%AF%B6%E5%AF%B6%E7%99%BE%E7%A7%91%E5%85%A8%E6%9B%B8)及平台授權頁取得402，未能核驗。三者仍是來源線索，不新增APPROVED。
-- 原角色清單與180候選保留，不擅自替換為15個自創角色冒稱真實角色題庫。完整120位與其餘七場Cloud QA因此仍NOT READY。
+- 原角色清單與180候選保留，不擅自替換為15個自創角色冒稱真實角色題庫。完整120位與其餘七場Cloud QA因此仍NOT READY。這是保留缺口的階段性交付，不是八組完成；其餘105個Cloud分組席位尚缺核准素材與匯入，不能用本機76張技術通過或兩位既有本機核准充數。
 
 ## 6. 回滾程序
 

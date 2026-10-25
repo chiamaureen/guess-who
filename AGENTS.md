@@ -7,6 +7,7 @@
 - 首批英語歌手15位採具名美國政府公有領域來源，10位重用原180候選、5位補充；原180／Demo120／60位第二批不刪。逐張來源、QID與最終裁切審核後才產生 reviewed-bank；不是僅憑 Metadata 自動 approved，也不是律師認證。原惠妮照片的 personality 警示及圖說提及但畫面無 John Legend 的照片均排除。詳細原圖、revision、WebP與審核／SQL／備份只在 ignored prepared，不能打包到前端。
 - 本次已單交易新增15 celebrities＋15 celebrity_categories＋15 game_image_assets＋15 celebrity_question_groups，共60列，獨立連線驗證15/15，原政治人物2位可用旗標不變。群組匯入器重跑須完全一致，回滾只處理收據新建且未使用的列；使用後不得刪除圖片／人物／題目／歷史。
 - 正式 Cloud QA 用既有 check-game-cloud.mjs 的明確 --first-playable 模式，固定公開 Pages URL、真實 Chrome Host／390px Player、實際 Cloud APIs，禁止攔截到fixtures；只可在本次授權下建立必要 QA 資料。每張WebP比對已審SHA、解碼、MIME／Metadata；C模式用過15人後在建房前即拒絕，不能為了QA重置歷史。詳見 docs/phase9-first-playable-cloud-release.md，不得把尚未跑完的真實驗收寫成PASS。
+- 2026-10-25 程式Commit 3e8989d 已Push，Pages run40159628859 build／deploy success。公開QA房X43BT3沿同一Session恢復續測完成15題：15不同人物／私有WebP、答案隔離、刷新、無第16題、finished與C歷史15均驗證。原工具全域hosts增量預期8實際9仍FAIL；另有未建房匿名身分，建立者未知，不得刪除它或改原收據。補充唯讀核對所有舊列／摘要及QA專屬筆數PASS，詳見報告限定範圍；不能宣稱單次不中斷或全項PASS。其餘七組0位Cloud合格、120位NOT DONE，Phase7仍DEFERRED。
 
 ## 架構
 - 單一 Repository，前端 React + Vite + TypeScript、Tailwind CSS、React Router。
