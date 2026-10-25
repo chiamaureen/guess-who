@@ -86,7 +86,7 @@ export function JoinRoomPage({ invitationCode }: { invitationCode?: string }) {
             <span aria-hidden="true">→</span>
           </button>
           <Feedback error={action.error} message={action.message} />
-          <p className="form-note">Session 保存在此瀏覽器；重新整理可恢復。遊戲尚未開放，等待室名單需手動更新。</p>
+          <p className="form-note">Session 保存在此瀏覽器，重新整理可恢復。等待室與遊戲狀態會定期自動同步。</p>
         </form>
       </div>
     </section>

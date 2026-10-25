@@ -12,30 +12,34 @@ export async function startBrowserFixture({ port = 8788, origin = 'http://127.0.
   await database.exec(await readFile(new URL('./realtime-platform.sql', import.meta.url), 'utf8'))
   const directory = new URL('../migrations/', import.meta.url)
   const migrations = (await readdir(directory)).filter(filename => filename.endsWith('.sql')).sort()
-  for (const filename of migrations) await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))
+  for (const filename of migrations) {
+    if (filename === '20261025010000_question_groups.sql') await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))
+    await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))
+  }
   if (!migrations.includes('20261023093000_room_system.sql')) await database.transaction(async transaction => transaction.exec(await readFile(new URL('../migration-drafts/20261023093000_room_system.sql', import.meta.url), 'utf8')))
   await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))
   if (!['png', 'webp', 'jpeg'].includes(imageFormat)) throw new Error('Invalid local fixture format')
   if (imageFormat !== 'png') {
-    await database.exec(await readFile(new URL('../migration-drafts/20261024120000_game_image_formats.sql', import.meta.url), 'utf8'))
+    if (!migrations.includes('20261024120000_game_image_formats.sql')) await database.exec(await readFile(new URL('../migration-drafts/20261024120000_game_image_formats.sql', import.meta.url), 'utf8'))
     const { fixturePng } = await import('./game-fixture.mjs')
     const { normalizeQuestionWebp } = await import('../../scripts/lib/question-images.mjs')
     const { default: sharp } = await import('sharp')
     const image = imageFormat === 'webp' ? (await normalizeQuestionWebp(fixturePng())).webp : await sharp(fixturePng()).jpeg().toBuffer()
-    if (gamePeople) await seedGameFixtures(database, gamePeople, image)
+    await seedGameFixtures(database, Math.max(gamePeople,15), image)
     const credit = JSON.stringify({ format: 'guess-who-image-rights-v1', attribution: 'LOCAL synthetic credit only', licenseVersion: '4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/', derivativeLicenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/', modifications: 'WebP resize and metadata removal', originalNotices: 'Synthetic fixture only', evidenceUrl: 'https://commons.wikimedia.org/w/index.php?title=File:SECRET-NAME.jpg&oldid=123', checkedAt: '2026-10-24' })
     await database.query('UPDATE public.celebrities SET image_license=$1,image_attribution=$2', ['CC BY-SA 4.0', credit])
-  } else if (gamePeople) await seedGameFixtures(database, gamePeople)
+  } else await seedGameFixtures(database, Math.max(gamePeople,15))
+  await database.exec("INSERT INTO public.celebrity_question_groups(celebrity_id,group_id) SELECT person.id,grouping.id FROM public.celebrities AS person CROSS JOIN public.question_groups AS grouping JOIN public.celebrity_categories AS category_member ON category_member.celebrity_id=person.id AND category_member.category_id=grouping.category_id")
   const signingKey = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')
   const rpc = (name, parameters) => database.transaction(async transaction => {
     await transaction.exec('SET LOCAL ROLE service_role')
     try {
-      const sql = name === 'rate' ? 'SELECT public.room_system_rate_limit($1::jsonb) AS result' : `SELECT public.${name === 'game' ? 'game_engine_action' : 'room_system_action'}($1, $2::jsonb) AS result`
+      const sql = name === 'rate' ? 'SELECT public.room_system_rate_limit($1::jsonb) AS result' : `SELECT public.${name === 'game' ? 'game_engine_action' : name === 'group' ? 'room_group_action' : 'room_system_action'}($1, $2::jsonb) AS result`
       const values = name === 'rate' ? [JSON.stringify(parameters)] : [parameters.action, JSON.stringify(parameters.input)]
       return (await transaction.query(sql, values)).rows[0].result
     } catch (error) { throw new RoomError(error.code === 'P0001' ? error.message : 'INTERNAL_ERROR') }
   })
-  const handler = createRoomHandler({ origins: [origin], publishableKeys: ['sb_publishable_fixture'], signingKey }, { rateLimit: scopes => rpc('rate', scopes), action: (action, input) => rpc('action', { action, input }) })
+  const handler = createRoomHandler({ origins: [origin], publishableKeys: ['sb_publishable_fixture'], signingKey }, { rateLimit: scopes => rpc('rate', scopes), action: (action, input) => rpc('action', { action, input }), groupAction: (action,input) => rpc('group',{action,input}) })
   const gameHandler = createGameHandler({ origins: [origin], publishableKeys: ['sb_publishable_fixture'], signingKey }, { rateLimit: scopes => rpc('rate', scopes), action: (action, input) => rpc('game', { action, input }) })
   const server = createServer(async (incoming, outgoing) => {
     try {

@@ -21,7 +21,7 @@ for (const photo of manifest.entries) {
   assert.equal(createHash('sha256').update(bytes).digest('hex'),photo.imageSha256)
   const fixture=await createGameFixture()
   try {
-    await fixture.database.exec(await readFile(new URL('../supabase/migration-drafts/20261024120000_game_image_formats.sql',import.meta.url),'utf8'))
+    if(!(await fixture.database.query("SELECT to_regprocedure('public.game_engine_image_valid(bytea)') AS existing")).rows[0].existing) await fixture.database.exec(await readFile(new URL('../supabase/migration-drafts/20261024120000_game_image_formats.sql',import.meta.url),'utf8'))
     await seedGameFixtures(fixture.database,15,bytes)
     await fixture.database.query('UPDATE public.celebrities SET image_author=$1,image_source=$2,image_license=$3,image_attribution=$4',[photo.author,photo.source,photo.license,storedAttribution(photo)])
     const call=async(action,input,headers={})=>{

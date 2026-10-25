@@ -16,6 +16,7 @@ export function exactImportedSubject(entry, subject) {
     AND person.image_author=${quote(entry.author)} AND person.image_license=${quote(entry.license)}
     AND person.image_attribution=${quote(storedAttribution(entry))}
     AND (SELECT array_agg(category_id ORDER BY category_id) FROM public.celebrity_categories WHERE celebrity_id=person.id)=ARRAY[${categories.map(quote).join(',')}]::uuid[]
+    ${entry.groupIds ? `AND (SELECT array_agg(group_id ORDER BY group_id) FROM public.celebrity_question_groups WHERE celebrity_id=person.id)=ARRAY[${entry.groupIds.toSorted().map(quote).join(',')}]::uuid[]` : ''}
     AND (SELECT count(*) FROM public.game_image_assets WHERE celebrity_id=person.id AND is_approved)=1
     AND EXISTS (SELECT 1 FROM public.game_image_assets WHERE celebrity_id=person.id AND is_approved AND encode(sha256(png),'hex')=${quote(subject.imageSha256)})`
 }
@@ -44,6 +45,7 @@ export function rollbackQuestionImport(entries, subjects) {
     RAISE EXCEPTION 'Imported subject changed or used; refuse rollback';
   END IF;
   DELETE FROM public.game_image_assets WHERE id=${quote(subject.imageId)}::uuid AND celebrity_id=${quote(subject.id)}::uuid;
+  ${entry.groupIds ? `DELETE FROM public.celebrity_question_groups WHERE celebrity_id=${quote(subject.id)}::uuid;` : ''}
   DELETE FROM public.celebrity_categories WHERE celebrity_id=${quote(subject.id)}::uuid;
   DELETE FROM public.celebrities WHERE id=${quote(subject.id)}::uuid;
 END IF;`)

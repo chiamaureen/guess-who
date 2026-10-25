@@ -14,6 +14,7 @@ export interface Backend {
   rateLimit(request: RateLimitRequest): Promise<{ allowed: boolean; authenticated: boolean; retryAfter: number }>
   action(action: string, input: Payload): Promise<Payload>
   realtimeGrant?(input: Payload): Promise<Payload>
+  groupAction?(action: string, input: Payload): Promise<Payload>
 }
 export interface HandlerConfig {
   origins: string[]
@@ -25,6 +26,7 @@ export interface HandlerConfig {
 
 const errors: Record<string, [number, string]> = {
   INVALID_INPUT: [400, '輸入格式不正確。'], INVALID_CATEGORIES: [400, '請選擇有效且啟用的分類。'],
+  INVALID_GROUPS: [400, '請選擇有效且開放的題庫分組。'], INSUFFICIENT_QUESTIONS: [409, '分組未使用的合格人物不足 15 位，請重新選擇或明確重置自己的歷史。'],
   UNAUTHORIZED: [401, '身分憑證無效或已撤銷，請重新加入。'], FORBIDDEN: [403, '你沒有這個房間的操作權限。'],
   ROOM_NOT_FOUND: [404, '找不到這個房間，請確認代碼。'], ROOM_EXPIRED: [410, '房間已過期，請重新建立房間。'], ROOM_CLOSED: [410, '房間已關閉，無法加入。'],
   ROOM_IN_PROGRESS: [409, '房間正在遊戲中，本階段不支援此操作。'], IDEMPOTENCY_CONFLICT: [409, '重試資料與原請求不同，請重設建立或加入操作。'],
@@ -110,7 +112,7 @@ export function createRoomHandler(config: HandlerConfig, backend: Backend) {
     if (request.method !== 'POST') return new Response(JSON.stringify({ error: { code: 'METHOD_NOT_ALLOWED', message: '僅支援 POST。' } }), { status: 405, headers })
     try {
       const action = new URL(request.url).pathname.split('/').filter(Boolean).at(-1) ?? ''
-      assertInput(['host-session', 'create-room', 'join-room', 'get-room-state', 'leave-room', 'close-room', 'get-realtime-ticket'].includes(action))
+      assertInput(['host-session', 'create-room', 'join-room', 'get-room-state', 'leave-room', 'close-room', 'get-realtime-ticket', 'get-question-groups'].includes(action))
       let input: Payload = {}
       let bodyError: unknown
       try { input = await readBody(request) } catch (error) { bodyError = error }
@@ -121,7 +123,7 @@ export function createRoomHandler(config: HandlerConfig, backend: Backend) {
       const address = connection?.sourceAddress?.trim()
       const source = address && address.length <= 128 ? address : 'unavailable'
       const sourceHash = await hashToken('rate-source', await deriveToken(config.signingKey, 'rate-source', source))
-      const rateRequest: RateLimitRequest = { action: action === 'get-realtime-ticket' ? 'get-room-state' : action, bootstrap, source_bucket: Number.parseInt(sourceHash.slice(0, 2), 16) }
+      const rateRequest: RateLimitRequest = { action: ['get-realtime-ticket','get-question-groups'].includes(action) ? 'get-room-state' : action, bootstrap, source_bucket: Number.parseInt(sourceHash.slice(0, 2), 16) }
       if (validToken(host, 'host')) rateRequest.host_hash = await hashToken('host', host)
       else if (validToken(player, 'player')) rateRequest.player_hash = await hashToken('player', player)
       if (typeof input.roomCode === 'string' && /^[a-zA-Z0-9]{6}$/.test(input.roomCode.trim())) rateRequest.room_code = input.roomCode.trim().toUpperCase()
@@ -135,7 +137,14 @@ export function createRoomHandler(config: HandlerConfig, backend: Backend) {
       const credentials: Payload = host ? { host_hash: await hashToken('host', host) } : player ? { player_hash: await hashToken('player', player) } : {}
       if (roomToken) credentials.room_token_hash = await hashToken('room', roomToken)
       let data: Payload
-      if (action === 'get-realtime-ticket') {
+      if (action === 'get-question-groups') {
+        fields(input, [])
+        if (!host || player || roomToken) throw new RoomError('UNAUTHORIZED')
+        if (!backend.groupAction) throw new RoomError('SERVICE_UNAVAILABLE')
+        const result = await backend.groupAction(action, credentials)
+        assertInput(Array.isArray(result.groups))
+        data = { groups: (result.groups as Payload[]).map(group => ({ id: group.id, name: group.name, slug: group.slug, categoryId: group.categoryId, available: group.available, selectable: group.selectable, reason: group.reason })) }
+      } else if (action === 'get-realtime-ticket') {
         fields(input, ['roomCode'])
         if (!(host && roomToken || player)) throw new RoomError('UNAUTHORIZED')
         if (!backend.realtimeGrant || !config.realtimeSigningJwk || !config.projectUrl) throw new RoomError('SERVICE_UNAVAILABLE')
@@ -155,13 +164,16 @@ export function createRoomHandler(config: HandlerConfig, backend: Backend) {
           data = input.mode === 'revoke' ? { revoked: result.revoked } : { hostId: result.hostId }
         }
       } else if (action === 'create-room') {
-        fields(input, ['categoryIds', 'requestKey'])
+        fields(input, ['categoryIds', 'groupIds', 'requestKey'])
         if (!host || roomToken || player) throw new RoomError('UNAUTHORIZED')
-        assertInput(validNonce(input.requestKey) && Array.isArray(input.categoryIds) && input.categoryIds.length >= 1 && input.categoryIds.length <= 32 && input.categoryIds.every(value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) && new Set(input.categoryIds).size === input.categoryIds.length)
+        const grouped = Object.hasOwn(input, 'groupIds')
+        const selected = grouped ? input.groupIds : input.categoryIds
+        assertInput(!(grouped && Object.hasOwn(input,'categoryIds')) && validNonce(input.requestKey) && Array.isArray(selected) && selected.length >= 1 && selected.length <= (grouped ? 8 : 32) && selected.every(value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) && new Set(selected).size === selected.length)
+        if (grouped && !backend.groupAction) throw new RoomError('SERVICE_UNAVAILABLE')
         const controlToken = `gw_room_${await deriveToken(host, 'room', input.requestKey)}`
         let result: Payload | undefined
         for (let attempt = 0; attempt < 8; attempt++) {
-          try { result = await backend.action(action, { ...credentials, category_ids: input.categoryIds, room_token_hash: await hashToken('room', controlToken), room_code: randomRoomCode() }); break }
+          try { result = await (grouped ? backend.groupAction! : backend.action)(action, { ...credentials, ...(grouped ? { group_ids: selected } : { category_ids: selected }), room_token_hash: await hashToken('room', controlToken), room_code: randomRoomCode() }); break }
           catch (error) { if (!(error instanceof RoomError) || error.code !== 'ROOM_CODE_COLLISION') throw error }
         }
         if (!result) throw new RoomError('INTERNAL_ERROR')

@@ -9,6 +9,7 @@ export class RoomApiError extends Error {
 }
 
 const messages: Record<string, string> = {
+  INVALID_GROUPS: '題庫分組尚未開放或不存在，請重新選擇。',
   INVALID_INPUT: '輸入格式不正確。', INVALID_CATEGORIES: '分類已停用或不存在，請重新選擇。', UNAUTHORIZED: '身分憑證已失效，請重新加入或明確撤銷舊主持人身分。',
   FORBIDDEN: '你沒有這個房間的操作權限。', ROOM_NOT_FOUND: '找不到這個房間，請確認代碼。', ROOM_EXPIRED: '房間已過期，請重新建立房間。', ROOM_CLOSED: '房間已關閉，無法加入。',
   ROOM_IN_PROGRESS: '房間正在遊戲中，本階段不支援此操作。', ROOM_LIMIT: '請先關閉舊房間，同一主持人最多保留五間未過期房間。', ROOM_FULL: '房間已滿，請聯絡主持人。',

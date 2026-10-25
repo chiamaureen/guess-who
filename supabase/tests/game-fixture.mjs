@@ -52,7 +52,10 @@ export async function createGameFixture(origin = 'http://localhost:5173') {
   await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;')
   await database.exec(await readFile(new URL('./realtime-platform.sql', import.meta.url), 'utf8'))
   const directory = new URL('../migrations/', import.meta.url)
-  for (const filename of (await readdir(directory)).filter(name => name.endsWith('.sql')).sort()) await database.exec(await readFile(new URL(filename, directory), 'utf8'))
+  for (const filename of (await readdir(directory)).filter(name => name.endsWith('.sql')).sort()) {
+    if (filename === '20261025010000_question_groups.sql') await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))
+    await database.exec(await readFile(new URL(filename, directory), 'utf8'))
+  }
   await database.exec(await readFile(new URL('../seed.sql', import.meta.url), 'utf8'))
   const rpc = async (kind, action, input) => database.transaction(async transaction => {
     await transaction.exec('SET LOCAL ROLE service_role')

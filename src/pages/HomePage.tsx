@@ -97,7 +97,7 @@ export function HomePage() {
         <span>✳</span>
         <p>
           <strong>先集合，派對即將開始。</strong>
-          已可建立與加入雲端房間，等待朋友入座；正式遊戲尚未開放。
+          建立房間並選擇已開放的題庫分組，和朋友一起挑戰 15 題。
         </p>
         <Link to="/host">探索分類 →</Link>
       </div>

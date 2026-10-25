@@ -4,14 +4,17 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { readFile, writeFile, mkdtemp, chmod } from 'node:fs/promises'
 import sharp from 'sharp'
+import { privateImageMime } from '../supabase/functions/game-engine/images.ts'
+import { nonce } from '../supabase/functions/room-system/crypto.ts'
 import { readEnvironment } from './check-supabase.mjs'
 import { readSupabaseConfig } from '../src/lib/supabase-config.ts'
 import { gameVerificationSql } from './make-game-verification.mjs'
 
 const project = 'fgvajdnzrnptdjurhjfo'
 const argumentsList = process.argv.slice(2)
+const release = argumentsList.length === 4 && argumentsList[3] === '--first-playable'
 const resumeDirectory = argumentsList.length === 5 && argumentsList[3] === '--resume-qa' && /^\/tmp\/guess-who-phase6-cloud-[A-Za-z0-9]+$/.test(argumentsList[4]) ? argumentsList[4] : undefined
-if (argumentsList.slice(0, 3).join(' ') !== `--allow-test-writes --project-ref ${project}` || !(argumentsList.length === 3 || resumeDirectory)) {
+if (argumentsList.slice(0, 3).join(' ') !== `--allow-test-writes --project-ref ${project}` || !(argumentsList.length === 3 || resumeDirectory || release)) {
   console.log('BLOCKED: explicit --allow-test-writes and fixed --project-ref required; this tool creates real Cloud QA data.')
   process.exitCode = 2
 } else {
@@ -23,7 +26,7 @@ async function main(resumeDirectory) {
   assert.equal(config.url, `https://${project}.supabase.co`)
   assert.equal((await readFile('supabase/.temp/project-ref', 'utf8')).trim(), project)
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright')
-  const base = 'http://localhost:5173/guess-who/'
+  const base = release ? 'https://chiamaureen.github.io/guess-who/' : 'http://localhost:5173/guess-who/'
   const origin = new URL(base).origin
   const artifacts = await mkdtemp('/tmp/guess-who-phase6-cloud-')
   await chmod(artifacts, 0o700)
@@ -38,10 +41,11 @@ async function main(resumeDirectory) {
     assert.ok(['host', 'player'].every(name => savedSessions.some(session => session.name === name)))
   }
   const label = previous?.label ?? `P6QA${new Date().toISOString().replace(/\D/g, '').slice(4, 14)}`
-  const reviewed = JSON.parse(await readFile('data/question-bank/prepared/review-20261023/reviewed-bank.json', 'utf8')).entries
+  const reviewed = JSON.parse(await readFile(release ? 'data/question-bank/prepared/phase9-english-release-v2-20261025/reviewed-bank.json' : 'data/question-bank/prepared/review-20261023/reviewed-bank.json', 'utf8')).entries
   const approvedImages = new Map(reviewed.map(entry => [entry.imageSha256, entry]))
   const names = new Set(reviewed.map(entry => entry.nameZh))
-  const category = '10000000-0000-4000-8000-000000000004'
+  const category = release ? '10000000-0000-4000-8000-000000000002' : '10000000-0000-4000-8000-000000000004'
+  const selectedGroup = '20000000-0000-4000-8000-000000000003'
   const states = new Map()
   const images = new Map([['host', new Map()], ['player', new Map()]])
   const imageResponses = new Map([['host', new Map()], ['player', new Map()]])
@@ -108,7 +112,8 @@ async function main(resumeDirectory) {
   const api = async (service, action, input, page, code, status = 200, errorCode) => {
     const read = ['get-room-state', 'get-game-state', 'get-question-image'].includes(action)
     await pace(read ? 1 : 0, read ? 0 : 1)
-    const headers = await credentials(page, code)
+    const savedHeaders = await credentials(page, code)
+    const headers = action === 'create-room' ? { 'x-host-credential': savedHeaders['x-host-credential'] } : savedHeaders
     for (let attempt = 0; attempt < 2; attempt++) {
       count(action)
       const response = await fetch(`${config.url}/functions/v1/${service}/${action}`, { method: 'POST', headers: { Origin: origin, apikey: config.publishableKey, 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(input), redirect: 'error', signal: AbortSignal.timeout(30000) })
@@ -131,13 +136,13 @@ async function main(resumeDirectory) {
     const path = new URL(response.url()).pathname
     if (!path.startsWith('/functions/v1/')) return
     assert.ok(response.status() < 500)
-    if (response.status() === 429) { rateResponses++; throw new Error('Unexpected browser rate limit; no automatic control retry') }
+    if (response.status() === 429) { rateResponses++; if (release) return; throw new Error('Unexpected browser rate limit; no automatic control retry') }
     if (!path.startsWith('/functions/v1/game-engine/') || response.status() !== 200) return
     if (path.endsWith('/get-question-image')) {
       const headers = response.headers()
-      assert.equal(headers['content-type'], 'image/png')
+      assert.equal(headers['content-type'], release ? 'image/webp' : 'image/png')
       assert.equal(headers['cache-control'], 'no-store')
-      assert.equal(headers['content-disposition'], 'inline; filename="photo.png"')
+      assert.equal(headers['content-disposition'], release ? 'inline; filename="photo.webp"' : 'inline; filename="photo.png"')
       const questionId = response.request().postDataJSON().questionId
       imageResponses.get(name).set(questionId, true)
     } else {
@@ -150,6 +155,8 @@ async function main(resumeDirectory) {
         assert.ok(!('historyRevision' in data))
         for (const entry of reviewed) assert.ok(!JSON.stringify(data).includes(entry.nameZh))
       }
+      const previousState=states.get(name)
+      if (release && previousState?.question && data.question && (previousState.question.number>data.question.number || previousState.question.id===data.question.id && previousState.question.revealed && !data.question.revealed || previousState.room.status==='finished' && data.room.status!=='finished')) return
       states.set(name, data)
     }
   }
@@ -162,7 +169,7 @@ async function main(resumeDirectory) {
       localStorage.setItem('guess-who:qa-imported', '1')
     }, savedSessions.find(session => session.name === name).storage)
     const page = await context.newPage()
-    page.setDefaultTimeout(45000)
+    page.setDefaultTimeout(release ? 120000 : 45000)
     page.on('pageerror', () => errors.push('browser runtime error'))
     page.on('console', message => consoleMessages.push(message.text()))
     page.on('request', request => { if (request.method() === 'POST' && request.url().startsWith(`${config.url}/functions/v1/`)) count(new URL(request.url()).pathname.split('/').at(-1)) })
@@ -176,6 +183,7 @@ async function main(resumeDirectory) {
   }
   const waitQuestion = async (page, number, revealed) => {
     await page.getByText(`QUESTION ${number} / 15 · ${revealed ? '已揭曉' : '尚未揭曉'}`, { exact: true }).waitFor()
+    await page.locator(`.game-photo img[alt="第 ${number} 題人物照片"]`).waitFor()
     await page.waitForFunction(() => (document.querySelector('.game-photo img')?.naturalWidth ?? 0) > 0)
     await settle()
     const name = pages.get('host') === page ? 'host' : 'player'
@@ -188,7 +196,16 @@ async function main(resumeDirectory) {
     }))
     const digest = createHash('sha256').update(bytes).digest('hex')
     const expected = approvedImages.get(digest)
-    assert.ok(expected && bytes.length <= 131072)
+    assert.ok(expected && bytes.length <= (release ? 307200 : 131072))
+    if(release) {
+      assert.equal(privateImageMime(bytes),'image/webp')
+      const metadata=await sharp(bytes).metadata()
+      await sharp(bytes).stats()
+      assert.ok(Math.max(metadata.width,metadata.height)<=1024)
+      assert.ok(!metadata.exif&&!metadata.icc&&!metadata.xmp&&!metadata.orientation)
+      images.get(name).set(questionId,digest)
+      return
+    }
     const chunks = []
     let offset = 8
     while (offset < bytes.length) { const size = bytes.readUInt32BE(offset); chunks.push(bytes.toString('ascii', offset + 4, offset + 8)); offset += size + 12 }
@@ -200,6 +217,7 @@ async function main(resumeDirectory) {
     images.get(name).set(questionId, digest)
   }
   const refreshPlayer = async (page, number, revealed) => {
+    if(release) { await waitQuestion(page,number,revealed); return }
     await pace(3)
     const button = page.getByRole('button', { name: '重新取得遊戲狀態', exact: true })
     await button.waitFor()
@@ -223,7 +241,7 @@ async function main(resumeDirectory) {
     }
   }
   try {
-    const tables = ['categories', 'celebrities', 'celebrity_categories', 'game_image_assets', 'hosts', 'rooms', 'room_categories', 'room_players', 'room_questions', 'host_question_history']
+    const tables = ['categories', 'celebrities', 'celebrity_categories', 'game_image_assets', 'hosts', 'rooms', 'room_categories', 'room_players', 'room_questions', 'host_question_history', ...(release?['question_groups','celebrity_question_groups','room_question_groups']:[])]
     const countsSql = tables.map(table => `'${table}',(SELECT count(*) FROM public.${table})`).join(',')
     await check('read-only target, bank and existing-data baseline', async () => {
       baseline = (await query('baseline', `BEGIN READ ONLY; SELECT jsonb_build_object(${countsSql}) AS counts, (SELECT count(DISTINCT celebrity.id) FROM public.celebrities AS celebrity JOIN public.celebrity_categories AS membership ON membership.celebrity_id=celebrity.id JOIN public.categories AS category ON category.id=membership.category_id AND category.is_active WHERE category.id='${category}' AND celebrity.is_approved AND EXISTS (SELECT 1 FROM public.game_image_assets AS asset WHERE asset.celebrity_id=celebrity.id AND asset.is_approved)) AS eligible; ROLLBACK;`))[0]
@@ -244,7 +262,12 @@ async function main(resumeDirectory) {
     })
     else await check('new anonymous Host creates political-only room; independent Player joins via invitation', async () => {
       await host.goto(`${base}#/host`)
-      const selection = host.getByRole('checkbox', { name: '政治人物' })
+      const selection = host.getByRole('checkbox', { name: release ? /英語歌手/ : '政治人物' })
+      if(release) {
+        assert.equal(await host.getByRole('checkbox').count(),8)
+        assert.equal(await host.locator('input[type=checkbox]:disabled').count(),7)
+        assert.equal(await host.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)
+      }
       await selection.check()
       assert.equal(await host.getByRole('checkbox', { checked: true }).count(), 1)
       await host.getByRole('button', { name: '建立房間', exact: true }).click()
@@ -259,7 +282,11 @@ async function main(resumeDirectory) {
       await player.goto(invite)
       await player.getByLabel('你的暱稱').fill(`${label}-P`)
       await player.getByRole('button', { name: '加入房間', exact: true }).click()
-      await player.getByRole('region', { name: '遊戲區域' }).getByText('等待主持人開始遊戲，請手動更新狀態。', { exact: true }).waitFor()
+      await player.getByRole('region', { name: '遊戲區域' }).getByText(release ? '等待主持人開始遊戲，畫面將自動同步。' : '等待主持人開始遊戲，請手動更新狀態。', { exact: true }).waitFor()
+      if(release) {
+        await host.getByText(`${label}-P`,{exact:true}).waitFor()
+        assert.equal(await player.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)
+      }
       assert.equal(await player.evaluate(() => localStorage.getItem('guess-who:v1:host')), null)
     })
     await check('Player cannot start; Host starts actual question1 with private answer', async () => {
@@ -332,7 +359,17 @@ async function main(resumeDirectory) {
       assert.equal(new Set(images.get('host').values()).size, 15)
       assert.equal(new Set(images.get('player').values()).size, 15)
     })
-    await check('same Host second political room cannot start; close waiting room without resetting history', async () => {
+    if(release) await check('same Host sees exhausted group disabled; direct grouped creation rejected before creating another room; history never reset',async()=>{
+      await pace(3,1)
+      await host.goto(`${base}#/host`)
+      const selection=host.getByRole('checkbox',{name:/英語歌手/})
+      await selection.waitFor()
+      assert.equal(await selection.isDisabled(),true)
+      assert.equal(await host.getByRole('button',{name:'建立房間',exact:true}).isDisabled(),true)
+      const rejected=await api('room-system','create-room',{groupIds:[selectedGroup],requestKey:nonce()},host,firstRoom,409,'INSUFFICIENT_QUESTIONS')
+      assert.equal(rejected.error.code,'INSUFFICIENT_QUESTIONS')
+    })
+    else await check('same Host second political room cannot start; close waiting room without resetting history', async () => {
       await pace(5, 2)
       await host.goto(`${base}#/host`)
       await host.getByRole('checkbox', { name: '政治人物' }).check()
@@ -363,14 +400,14 @@ async function main(resumeDirectory) {
       assert.equal(Number(first[0].questions), 15)
       assert.equal(Number(first[0].distinct_people), 15)
       assert.equal(Number(first[0].host_history_count), 15)
-      const deltas = previous ? { rooms: 1, room_categories: 1, room_questions: 14, host_question_history: 14 } : { hosts: 1, rooms: 2, room_categories: 2, room_players: 1, room_questions: 15, host_question_history: 15 }
+      const deltas = release ? {hosts:1,rooms:1,room_categories:1,room_question_groups:1,room_players:1,room_questions:15,host_question_history:15} : previous ? { rooms: 1, room_categories: 1, room_questions: 14, host_question_history: 14 } : { hosts: 1, rooms: 2, room_categories: 2, room_players: 1, room_questions: 15, host_question_history: 15 }
       const guards = tables.map(table => `IF (SELECT count(*) FROM public.${table}) <> ${Number(baseline.counts[table]) + (deltas[table] ?? 0)} THEN RAISE EXCEPTION 'Unexpected ${table} row count'; END IF;`).join('\n')
-      const second = await query('final-integrity', `BEGIN READ ONLY; DO $verify$ DECLARE first_room public.rooms; second_room public.rooms; BEGIN SELECT * INTO STRICT first_room FROM public.rooms WHERE room_code='${firstRoom}'; SELECT * INTO STRICT second_room FROM public.rooms WHERE room_code='${secondRoom}'; IF first_room.host_id <> second_room.host_id OR second_room.status <> 'finished' OR second_room.current_question <> 0 OR second_room.ended_at IS NULL OR first_room.ended_at IS NULL THEN RAISE EXCEPTION 'QA room ownership, close or second-room progress mismatch'; END IF; IF EXISTS (SELECT 1 FROM public.room_questions WHERE room_id=second_room.id) THEN RAISE EXCEPTION 'Refused game still created questions'; END IF; ${guards} END; $verify$; SELECT jsonb_build_object(${countsSql}) AS counts; ROLLBACK;`)
+      const second = await query('final-integrity', release ? `BEGIN READ ONLY; DO $verify$ BEGIN ${guards} END; $verify$; SELECT jsonb_build_object(${countsSql}) AS counts; ROLLBACK;` : `BEGIN READ ONLY; DO $verify$ DECLARE first_room public.rooms; second_room public.rooms; BEGIN SELECT * INTO STRICT first_room FROM public.rooms WHERE room_code='${firstRoom}'; SELECT * INTO STRICT second_room FROM public.rooms WHERE room_code='${secondRoom}'; IF first_room.host_id <> second_room.host_id OR second_room.status <> 'finished' OR second_room.current_question <> 0 OR second_room.ended_at IS NULL OR first_room.ended_at IS NULL THEN RAISE EXCEPTION 'QA room ownership, close or second-room progress mismatch'; END IF; IF EXISTS (SELECT 1 FROM public.room_questions WHERE room_id=second_room.id) THEN RAISE EXCEPTION 'Refused game still created questions'; END IF; ${guards} END; $verify$; SELECT jsonb_build_object(${countsSql}) AS counts; ROLLBACK;`)
       database = { firstGame: first[0], finalCounts: second[0].counts, permittedDeltas: deltas, result: 'PASS' }
     })
     await check('no credentials in browser console and no runtime/server/security failures', async () => {
       for (const [pageName, page] of pages) {
-        const header = await credentials(page, pageName === 'host' ? secondRoom : firstRoom)
+        const header = await credentials(page, pageName === 'host' && !release ? secondRoom : firstRoom)
         for (const value of Object.values(header)) assert.ok(!consoleMessages.some(message => message.includes(value)))
       }
       assert.equal(errors.length, 0)

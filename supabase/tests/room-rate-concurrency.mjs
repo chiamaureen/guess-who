@@ -23,7 +23,10 @@ if (!process.env.PG_BIN_DIR || !process.env.PG_DRIVER_MODULE) {
     await pool.query('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;')
     const migrationsDirectory = new URL('../migrations/', import.meta.url)
     const migrations = (await readdir(migrationsDirectory)).filter(filename => filename.endsWith('.sql')).sort()
-    for (const filename of migrations) await pool.query(await readFile(new URL(filename, migrationsDirectory), 'utf8'))
+    for (const filename of migrations) {
+      if(filename==='20261025010000_question_groups.sql') await pool.query(await readFile(new URL('../seed.sql',import.meta.url),'utf8'))
+      await pool.query(await readFile(new URL(filename, migrationsDirectory), 'utf8'))
+    }
     if (!migrations.includes('20261023093000_room_system.sql')) await pool.query(await readFile(new URL('../migration-drafts/20261023093000_room_system.sql', import.meta.url), 'utf8'))
     const version = (await pool.query('SHOW server_version')).rows[0].server_version
     const connected = await Promise.all(Array.from({ length: 20 }, () => pool.connect()))

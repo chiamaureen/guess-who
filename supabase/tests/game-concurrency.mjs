@@ -25,7 +25,10 @@ if (!process.env.PG_BIN_DIR || !process.env.PG_DRIVER_MODULE) {
     await pool.query(await readFile(new URL('./realtime-platform.sql',import.meta.url),'utf8'))
     const migrations=new URL('../migrations/',import.meta.url)
     const migrationFiles=(await readdir(migrations)).filter(name=>name.endsWith('.sql')).sort()
-    for(const file of migrationFiles) await pool.query(await readFile(new URL(file,migrations),'utf8'))
+    for(const file of migrationFiles) {
+      if(file==='20261025010000_question_groups.sql') await pool.query(await readFile(new URL('../seed.sql',import.meta.url),'utf8'))
+      await pool.query(await readFile(new URL(file,migrations),'utf8'))
+    }
     if(process.env.PG_TEST_REALTIME==='1' && !migrationFiles.includes('20261023180000_room_realtime.sql')) await pool.query(await readFile(new URL('../migration-drafts/20261023180000_room_realtime.sql',import.meta.url),'utf8'))
     await pool.query(await readFile(new URL('../seed.sql',import.meta.url),'utf8'))
     await seedGameFixtures(pool,45)

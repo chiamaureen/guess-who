@@ -1,5 +1,13 @@
 # Guess Who 開發規則
 
+## 最新 Phase 9 交付邊界（2026-10-25）
+- 使用者本次明確授權必要增量 Migration、Functions、已核准素材匯入與 Git／Pages 發布，最終 DONE 改為八組各15位、共120位不同人物、八場真實 Cloud 驗收；一組完成不代表全部 DONE。仍只用此對話，不用 Subagents／Worktree，不刪既有房間、政治人物或 C 歷史，不核准來源不明圖片。
+- 已部署 20261024120000_game_image_formats、20261024160000_add_youtubers_category、20261025010000_question_groups；現在均屬已部署 Migration，禁止修改。舊 Phase4～6 hashes 不變。Phase7 Migration／Realtime signing key 未部署或設定，room-system entry 預設不讀 Realtime key，只有另行明確啟用 ROOM_ENABLE_REALTIME 才能使用保留程式碼。
+- 新 question_groups／celebrity_question_groups／room_question_groups 為私表，ENABLE／FORCE RLS、browser零GRANT；room_group_action 與 game_engine_group_eligible 為 INVOKER、空 search_path、service_role-only。Host-aware選項只回名稱、數量與不可選原因；Edge 新 get-question-groups 沿用 H-01 read gate，Host驗證成功才執行。群組建房同交易保存、冪等檢查包含分組；舊 category-only API／既有房間相容，新抽題三處都套用群組與 C 歷史。
+- 首批英語歌手15位採具名美國政府公有領域來源，10位重用原180候選、5位補充；原180／Demo120／60位第二批不刪。逐張來源、QID與最終裁切審核後才產生 reviewed-bank；不是僅憑 Metadata 自動 approved，也不是律師認證。原惠妮照片的 personality 警示及圖說提及但畫面無 John Legend 的照片均排除。詳細原圖、revision、WebP與審核／SQL／備份只在 ignored prepared，不能打包到前端。
+- 本次已單交易新增15 celebrities＋15 celebrity_categories＋15 game_image_assets＋15 celebrity_question_groups，共60列，獨立連線驗證15/15，原政治人物2位可用旗標不變。群組匯入器重跑須完全一致，回滾只處理收據新建且未使用的列；使用後不得刪除圖片／人物／題目／歷史。
+- 正式 Cloud QA 用既有 check-game-cloud.mjs 的明確 --first-playable 模式，固定公開 Pages URL、真實 Chrome Host／390px Player、實際 Cloud APIs，禁止攔截到fixtures；只可在本次授權下建立必要 QA 資料。每張WebP比對已審SHA、解碼、MIME／Metadata；C模式用過15人後在建房前即拒絕，不能為了QA重置歷史。詳見 docs/phase9-first-playable-cloud-release.md，不得把尚未跑完的真實驗收寫成PASS。
+
 ## 架構
 - 單一 Repository，前端 React + Vite + TypeScript、Tailwind CSS、React Router。
 - `src/pages` 為路由頁面，`components` 為共用元件，`hooks` 統一非同步狀態。

@@ -15,6 +15,9 @@ import { nonce, hashToken } from '../supabase/functions/room-system/crypto.ts'
 import { inventoryAthleteImages } from './inventory-athlete-images.mjs'
 
 const draft = new URL('../supabase/migration-drafts/20261024120000_game_image_formats.sql', import.meta.url)
+const applyFormats = async database => {
+  if (!(await database.query("SELECT to_regprocedure('public.game_engine_image_valid(bytea)') AS existing")).rows[0].existing) await database.exec(await readFile(draft, 'utf8'))
+}
 const athlete = '10000000-0000-4000-8000-000000000003'
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const imageEntry = () => ({ sourcePage: 'https://commons.wikimedia.org/wiki/File:LOCAL.jpg', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/ab/LOCAL.jpg', sourceSha1: 'a'.repeat(40) })
@@ -117,7 +120,7 @@ test('WebP staging stops on first decode failure and never approves or generates
 test('incremental format draft retains old PNG, accepts WebP/JPEG, denies metadata and browser roles, no grant expansion', async () => {
   const fixture = await createGameFixture()
   try {
-    await fixture.database.exec(await readFile(draft, 'utf8'))
+    await applyFormats(fixture.database)
     await fixture.database.query("INSERT INTO public.celebrities(id,wikidata_id,name_zh,subject_type,image_url,image_source,image_author,image_license,image_attribution,is_approved) VALUES('99999999-0000-4000-8000-000000000001','Q999','OLD POLITICAL FIXTURE','real_person','https://fixture.invalid/old.png','https://fixture.invalid/source','Original synthetic author','CC0','Legacy credit',true)")
     await fixture.database.query("INSERT INTO public.celebrity_categories VALUES('99999999-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000004')")
     await fixture.database.query("INSERT INTO public.game_image_assets(celebrity_id,png,is_approved) VALUES('99999999-0000-4000-8000-000000000001',$1,true)", [fixturePng()])
@@ -138,7 +141,7 @@ test('existing controlled image endpoint still serves real PNG and metadata-free
   for (const [mime, image] of [['image/png', fixturePng()], ['image/jpeg', await sharp(fixturePng()).jpeg().toBuffer()]]) {
     const fixture = await createGameFixture()
     try {
-      await fixture.database.exec(await readFile(draft, 'utf8'))
+      await applyFormats(fixture.database)
       await seedGameFixtures(fixture.database, 15, image)
       const hostHash = await hashToken('host', `gw_host_${nonce()}`)
       const roomHash = await hashToken('room', `gw_room_${nonce()}`)
@@ -169,7 +172,7 @@ test('69 synthetic reviewed WebPs produce exactly207 transaction rows; actual15-
   assert.deepEqual([prepared.reviewedSubjects, prepared.categoryRelationships, prepared.imageAssets, prepared.totalRows], [69, 69, 69, 207])
   assert.equal(prepared.requiresImageFormatsMigration, true)
   try {
-    await fixture.database.exec(await readFile(draft, 'utf8'))
+    await applyFormats(fixture.database)
     const sql = await readFile(prepared.output, 'utf8')
     assert.ok(!/UPDATE |DELETE |UPSERT|ON CONFLICT/.test(sql))
     const broken = sql.replace('COMMIT;', "INSERT INTO public.game_image_assets(celebrity_id,png) SELECT id,decode('00','hex') FROM public.celebrities LIMIT 1;\nCOMMIT;")

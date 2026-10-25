@@ -30,6 +30,31 @@ function fixture() {
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 
 describe('room session persistence', () => {
+  it('uses one persistent host identity for availability and retries the same group selection after response loss', async () => {
+    const { service, api } = fixture()
+    const original = api.getMockImplementation()!
+    const groups = Array.from({ length: 8 }, (_, index) => ({ id: `20000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`, categoryId, name: `Group ${index}`, slug: `group-${index}`, available: index === 0 ? 15 : 0, selectable: index === 0, reason: index === 0 ? '' : 'NOT READY' }))
+    let lost = true
+    api.mockImplementation(async (...args) => {
+      if (args[0] === 'get-question-groups') return { groups }
+      if (args[0] === 'create-room' && lost) { lost = false; throw new RoomApiError('NETWORK', 0, 'offline') }
+      return original(...args)
+    })
+    expect(await service.questionGroups()).toEqual(groups)
+    await expect(service.create([], [groups[0].id])).rejects.toThrow('offline')
+    await service.create([], [groups[1].id])
+    const requests = api.mock.calls.filter(([action]) => action === 'create-room')
+    expect(requests[0][1]).toEqual(requests[1][1])
+    expect(requests[0][1]).toMatchObject({ groupIds: [groups[0].id] })
+    expect(requests[0][1]).not.toHaveProperty('categoryIds')
+    expect(api.mock.calls.filter(([action]) => action === 'host-session')).toHaveLength(1)
+  })
+  it('rejects a group marked selectable without 15 eligible people', async () => {
+    const { service, api } = fixture()
+    const original = api.getMockImplementation()!
+    api.mockImplementation(async (...args) => args[0] === 'get-question-groups' ? { groups: Array.from({ length: 8 }, (_, index) => ({ id: String(index), categoryId, name: 'Invalid group', slug: 'invalid', available: 0, selectable: true, reason: '' })) } : original(...args))
+    await expect(service.questionGroups()).rejects.toThrow('題庫分組回應不正確')
+  })
   it('reuses the same host across page/service recreation and never persists authoritative game state', async () => {
     const { service, options, api, values } = fixture()
     await service.create([categoryId])

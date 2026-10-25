@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+.category-card:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .image-credits {
   overflow-wrap: anywhere;
   font-size: 0.875rem;

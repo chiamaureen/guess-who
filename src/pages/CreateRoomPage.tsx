@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useCategories } from "../hooks/useCategories";
+import { useQuestionGroups } from "../hooks/useQuestionGroups";
 import { useAction } from "../hooks/useAction";
 import { roomService } from "../services/rooms";
 import { Feedback } from "../components/Feedback";
@@ -14,13 +14,13 @@ export function CreateRoomPage() {
   const [savedCodes, setSavedCodes] = useState<string[]>([]);
   const [storageError, setStorageError] = useState("");
   const [confirmRevoke, setConfirmRevoke] = useState(false);
-  const { categories, loading, error, retry } = useCategories();
+  const { groups, loading, error, retry } = useQuestionGroups();
   const navigate = useNavigate();
   const action = useAction();
   useEffect(() => {
     try {
       const request = roomService.pendingCreation();
-      if (request) { setPending(true); setSelected(request.categoryIds); }
+      if (request) { setPending(true); setSelected(request.groupIds ?? []); }
       setSavedCodes(roomService.savedCodes());
     } catch (cause) { setStorageError(cause instanceof Error ? cause.message : "無法讀取本機身分。"); }
   }, []);
@@ -39,7 +39,7 @@ export function CreateRoomPage() {
       <p className="eyebrow">( be the host )</p>
       <h1>今天，想猜哪一種？</h1>
       <p className="page-description">
-        你來當主持人！選擇喜歡的人物分類，讓每一題都有驚喜。
+        選擇已開放的題庫分組。人數已排除這位主持人跨場使用過的人物。
       </p>
       {/* <p className="mock-label">分類來自 Supabase · 遊戲需要後端引擎與足夠的已審核題庫</p> */}
       {savedCodes.length > 0 && <div className="saved-rooms"><p>繼續已保存的房間：</p>{savedCodes.map(code => <Link key={code} to={`/room/${code}`}>{code} <ArrowUpRight /></Link>)}</div>}
@@ -52,7 +52,7 @@ export function CreateRoomPage() {
           event.preventDefault();
           void action.run(async () => {
             try {
-              const state = await roomService.create(selected);
+              const state = await roomService.create([], selected);
               void navigate(`/room/${state.room.code}`);
               return "";
             } finally { setPending(!!roomService.pendingCreation()); }
@@ -61,16 +61,17 @@ export function CreateRoomPage() {
       >
         <fieldset disabled={action.loading || pending || loading}>
           <legend className="selection-heading">
-            選擇人物分類 <span>可複選</span>
+            選擇人物分組 <span>可複選 · 每組至少 15 位</span>
           </legend>
           <div className="category-grid">
-            {categories.map((category, index) => (
+            {groups.map((category, index) => (
               <label
                 key={category.id}
                 className={`category-card ${["peach", "yellow", "green", "blue", "purple", "pink"][index % 6]} ${selected.includes(category.id) ? "selected" : ""}`}
               >
                 <input
                   type="checkbox"
+                  disabled={!category.selectable}
                   checked={selected.includes(category.id)}
                   onChange={() => toggle(category.id)}
                 />
@@ -80,18 +81,18 @@ export function CreateRoomPage() {
                 <span className="category-english">{category.slug.replace(/-/g, " ").toUpperCase()}</span>
                 <strong>{category.name}</strong>
                 <span className="category-description">
-                  一起挑戰這個分類的人物。
+                  {category.selectable ? `${category.available} 位未使用人物 · READY` : `${category.reason} · NOT READY`}
                 </span>
               </label>
             ))}
           </div>
-          {!loading && !error && categories.length === 0 && (
-            <p className="feedback">目前沒有可選分類，請稍後再試。</p>
+          {!loading && !error && groups.length === 0 && (
+            <p className="feedback">目前沒有可選分組，請稍後再試。</p>
           )}
         </fieldset>
         <div className="selection-summary">
           <p>
-            <strong>已選 {selected.length} 個分類</strong>
+            <strong>已選 {selected.length} 個分組</strong>
             <span>
               每場固定 {QUESTIONS_PER_GAME} 題 ·
               進入等待室後由主持人開始，人物跨場不重複

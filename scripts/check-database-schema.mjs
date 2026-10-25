@@ -39,7 +39,10 @@ export async function localCatalog() {
     const files = (await readdir(directory)).filter(filename => filename.endsWith('.sql')).sort()
     const versions = files.map(filename => filename.split('_')[0])
     if (new Set(versions).size !== versions.length) throw new Error('DUPLICATE_MIGRATION_VERSION')
-    for (const filename of files) await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))
+    for (const filename of files) {
+      if (filename === '20261025010000_question_groups.sql') await database.exec(await readFile(new URL('../supabase/seed.sql', import.meta.url), 'utf8'))
+      await database.transaction(async transaction => transaction.exec(await readFile(new URL(filename, directory), 'utf8')))
+    }
     const results = await database.exec(await readFile(sqlFile, 'utf8'))
     return { ...results.at(-2).rows[0].catalog, migrations: files }
   } finally {

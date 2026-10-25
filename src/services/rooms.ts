@@ -2,7 +2,7 @@ import { invokeRoomApi, parseLobby, RoomApiError } from '../lib/room-api'
 import { browserSessionLock, browserStorage, randomRequestKey, sessionStore } from '../lib/room-storage'
 import type { StoragePort } from '../lib/room-storage'
 import { validateJoinRoom } from '../lib/validation'
-import type { Category, JoinRoomInput, LobbyState, RoomSession } from '../types/game'
+import type { Category, QuestionGroup, JoinRoomInput, LobbyState, RoomSession } from '../types/game'
 import { invokeGameApi, loadGameImage, parseGameState } from '../lib/game-api'
 import type { GameAction } from '../types/game-engine'
 import type { RealtimeTicket, RoomSnapshot } from '../types/realtime'
@@ -10,7 +10,7 @@ import type { RealtimeTicket, RoomSnapshot } from '../types/realtime'
 type Api = typeof invokeRoomApi
 type Lock = <Result>(operation: () => Promise<Result>) => Promise<Result>
 type HostIdentity = { hostId: string; credential: string }
-type PendingCreation = { requestKey: string; categoryIds: string[] }
+type PendingCreation = { requestKey: string; categoryIds: string[]; groupIds?: string[] }
 
 export function createRoomService(options: { storage?: () => StoragePort; lock?: Lock; api?: Api; gameApi?: typeof invokeGameApi; imageApi?: typeof loadGameImage } = {}) {
   const store = sessionStore(options.storage ?? browserStorage)
@@ -27,7 +27,7 @@ export function createRoomService(options: { storage?: () => StoragePort; lock?:
   }
   const pendingCreation = (): PendingCreation | undefined => {
     const value = store.read('create') as PendingCreation | undefined
-    if (value !== undefined && (!value || !/^[A-Za-z0-9_-]{43}$/.test(value.requestKey) || !Array.isArray(value.categoryIds) || !value.categoryIds.every(id => typeof id === 'string'))) throw new Error('建立房間的重試資料已損壞，請檢查本機儲存。')
+    if (value !== undefined && (!value || !/^[A-Za-z0-9_-]{43}$/.test(value.requestKey) || !Array.isArray(value.categoryIds) || !value.categoryIds.every(id => typeof id === 'string') || value.groupIds !== undefined && (!Array.isArray(value.groupIds) || !value.groupIds.every(id => typeof id === 'string')))) throw new Error('建立房間的重試資料已損壞，請檢查本機儲存。')
     return value
   }
   const credentials = (session: RoomSession): Record<string, string> => {
@@ -120,22 +120,30 @@ export function createRoomService(options: { storage?: () => StoragePort; lock?:
       if (error || !data) throw new Error('無法讀取分類，請確認 Supabase 設定或稍後重試。')
       return data
     },
-    create(categoryIds: string[]) {
+    questionGroups(): Promise<QuestionGroup[]> {
+      return locked(async () => {
+        const host = await ensureHost()
+        const data = await api('get-question-groups', {}, { 'x-host-credential': host.credential })
+        if (!Array.isArray(data.groups) || data.groups.length !== 8 || !data.groups.every(group => group && typeof group.id === 'string' && typeof group.categoryId === 'string' && typeof group.name === 'string' && typeof group.slug === 'string' && Number.isInteger(group.available) && group.available >= 0 && typeof group.selectable === 'boolean' && (!group.selectable || group.available >= 15) && typeof group.reason === 'string') || new Set(data.groups.map(group => group.id)).size !== 8) throw new Error('題庫分組回應不正確，暫不允許建立房間。')
+        return data.groups as QuestionGroup[]
+      })
+    },
+    create(categoryIds: string[], groupIds?: string[]) {
       if (creation) return creation
       creation = locked(async () => {
-        if (!categoryIds.length && !pendingCreation()) throw new Error('請至少選擇一個人物分類。')
+        if (!categoryIds.length && !groupIds?.length && !pendingCreation()) throw new Error('請至少選擇一個人物分組。')
         const host = await ensureHost()
-        const pending = pendingCreation() ?? { requestKey: randomRequestKey(), categoryIds: [...categoryIds].sort() }
+        const pending = pendingCreation() ?? { requestKey: randomRequestKey(), categoryIds: [...categoryIds].sort(), ...(groupIds ? { groupIds: [...groupIds].sort() } : {}) }
         store.write('create', pending)
         try {
-          const result = await api('create-room', { categoryIds: pending.categoryIds, requestKey: pending.requestKey }, { 'x-host-credential': host.credential })
+          const result = await api('create-room', { ...(pending.groupIds ? { groupIds: pending.groupIds } : { categoryIds: pending.categoryIds }), requestKey: pending.requestKey }, { 'x-host-credential': host.credential })
           const state = parseLobby(result)
           if (state.viewer.role !== 'host' || state.viewer.id !== host.hostId || typeof result.hostToken !== 'string' || !/^gw_room_[A-Za-z0-9_-]{43}$/.test(result.hostToken)) throw new Error('主持人控制權回應不正確。')
           store.saveSession(state.room.code, { role: 'host', token: result.hostToken })
           store.remove('create')
           return state
         } catch (error) {
-          if (error instanceof RoomApiError && ['INVALID_CATEGORIES', 'ROOM_LIMIT'].includes(error.code)) store.remove('create')
+          if (error instanceof RoomApiError && ['INVALID_CATEGORIES', 'INVALID_GROUPS', 'INSUFFICIENT_QUESTIONS', 'ROOM_LIMIT'].includes(error.code)) store.remove('create')
           throw error
         }
       }).finally(() => { creation = undefined })

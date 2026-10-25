@@ -8,7 +8,10 @@ try {
   await database.exec('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;')
   const directory = new URL('../supabase/migrations/', import.meta.url)
   const migrations = (await readdir(directory)).filter(filename => filename.endsWith('.sql')).sort()
-  for (const filename of migrations) await database.transaction(transaction => readFile(new URL(filename, directory), 'utf8').then(sql => transaction.exec(sql)))
+  for (const filename of migrations) {
+    if (filename === '20261025010000_question_groups.sql') await database.exec(await readFile(new URL('../supabase/seed.sql', import.meta.url), 'utf8'))
+    await database.transaction(transaction => readFile(new URL(filename, directory), 'utf8').then(sql => transaction.exec(sql)))
+  }
   if (!migrations.includes('20261023093000_room_system.sql')) await database.exec(await readFile(new URL('../supabase/migration-drafts/20261023093000_room_system.sql', import.meta.url), 'utf8'))
   let actionCalls = 0
   const handler = createRoomHandler({ origins: ['http://localhost:5173'], publishableKeys: ['sb_publishable_review_fixture'], signingKey: Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('') }, {

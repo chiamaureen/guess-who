@@ -5,9 +5,9 @@ DO $verify$
 DECLARE
   category_slugs text[];
 BEGIN
-  SELECT array_agg(slug ORDER BY slug) INTO category_slugs FROM public.categories;
+  SELECT array_agg(slug ORDER BY slug) INTO category_slugs FROM public.categories WHERE slug<>'youtubers';
   IF category_slugs IS DISTINCT FROM ARRAY['actors','animated-characters','athletes','historical-figures','politicians','scientists','singers']::text[]
-    OR EXISTS (SELECT 1 FROM public.categories WHERE NOT is_active) THEN
+    OR EXISTS (SELECT 1 FROM public.categories WHERE slug<>'youtubers' AND NOT is_active) THEN
     RAISE EXCEPTION 'Seven active categories must be preserved';
   END IF;
   IF (SELECT count(*) FROM public.celebrities WHERE wikidata_id = ANY(ARRAY['Q11613','Q12325','Q207','Q22686','Q23505','Q34836','Q35648','Q76','Q91','Q9582','Q9588','Q9640','Q9696','Q9916','Q9960'])) <> 15 THEN

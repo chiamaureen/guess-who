@@ -20,6 +20,7 @@ export function LobbyPage() {
   const [revision, setRevision] = useState(0)
   const [cooldown, setCooldown] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
+  const [confirmReset, setConfirmReset] = useState('')
   const action = useAction()
   const navigate = useNavigate()
   const location = useLocation()
@@ -80,6 +81,14 @@ export function LobbyPage() {
       onControl={(operation, questionId) => sync.mutate(() => roomService.controlSnapshot(code, operation, questionId))}
       onReset={revision => sync.mutate(async () => { await roomService.resetHistory(code, revision, true); return roomService.getSnapshot(code) })} />}
     <Feedback error={action.error} message={action.message} />
+    {host && state.room.status === 'finished' && sync.snapshot?.game.historyRevision && <div className="identity-settings">
+      <p>跨場歷史已保留；若可用人物不足，可以明確重置自己的歷史，不刪除已完成題目。</p>
+      {!confirmReset ? <button type="button" className="text-button" onClick={() => setConfirmReset(sync.snapshot!.game.historyRevision!)}>重置我的出題歷史</button> : <>
+        <p>確定讓自己已使用過的人物重新進入抽題池？其他主持人的歷史不受影響。</p>
+        <button type="button" className="button button-outline button-static" disabled={action.loading} onClick={() => { void action.run(async () => { await sync.mutate(async () => { await roomService.resetHistory(code,confirmReset,true); return roomService.getSnapshot(code) }); setConfirmReset(''); return '你的出題歷史已重置。'; }); }}>確認重置我的歷史</button>
+        <button type="button" className="text-button" disabled={action.loading} onClick={() => setConfirmReset('')}>取消重置</button>
+      </>}
+    </div>}
     <div className="lobby-actions">
       {host && waiting && (!confirmClose ? <button className="text-button danger" disabled={action.loading} onClick={() => setConfirmClose(true)}>關閉房間</button> : <><p>確定關閉？玩家將無法再加入。</p><button className="button button-outline button-static" disabled={action.loading} onClick={() => { void action.run(async () => { await sync.mutate(async () => { await roomService.close(code); return roomService.getSnapshot(code) }); setConfirmClose(false); return '房間已關閉。'; }); }}>確認關閉房間</button><button className="text-button" onClick={() => setConfirmClose(false)}>取消</button></>)}
       {!host && <button className="button button-outline button-static" disabled={action.loading} onClick={() => { void action.run(async () => { await roomService.leave(code); void navigate('/join', { replace: true }); return ''; }); }}>離開房間 →</button>}

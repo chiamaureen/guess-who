@@ -4,6 +4,13 @@ export interface Category {
   slug: string
 }
 
+export interface QuestionGroup extends Category {
+  categoryId: string
+  available: number
+  selectable: boolean
+  reason: string
+}
+
 export interface LobbyState {
   room: { id: string; code: string; status: 'waiting' | 'playing' | 'finished'; currentQuestion: number; totalQuestions: 15; expiresAt: string }
   categories: Category[]
